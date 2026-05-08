@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
@@ -10,6 +12,7 @@ from typing import Any
 
 # 支持的新式子命令。未使用这些子命令时，会退回到旧版参数格式。
 COMMANDS = ("transcribe", "embed", "all")
+HELP_FLAGS = ("-h", "--help", "-help")
 
 # Whisper 有时会把没有说话的部分识别为以下字符串，这里统一过滤掉。
 BLOCKED_PHRASES = (
@@ -251,7 +254,7 @@ def build_legacy_parser() -> argparse.ArgumentParser:
 
 def should_use_command_parser(argv: list[str]) -> bool:
     """判断本次调用应该走新式子命令解析，还是旧版兼容解析。"""
-    return not argv or argv[0] in (*COMMANDS, "-h", "--help")
+    return not argv or argv[0] in (*COMMANDS, *HELP_FLAGS)
 
 
 def apply_legacy_language(args: argparse.Namespace) -> None:

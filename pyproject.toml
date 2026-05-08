@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxsub"
+version = "0.1.0"
+description = "VoxSub: transcribe media to SRT subtitles and embed subtitles into MKV files."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "openai-whisper>=20231117",
+    "OpenCC>=1.1.7",
+    "pysrt>=1.1.2",
+    "torch>=2.2",
+]
+
+[project.scripts]
+voxsub = "voxsub:main"
+
+[tool.setuptools]
+py-modules = ["voxsub"]
