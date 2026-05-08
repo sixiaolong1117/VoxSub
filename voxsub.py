@@ -10,10 +10,6 @@ from pathlib import Path
 from typing import Any
 
 
-# 支持的新式子命令。未使用这些子命令时，会退回到旧版参数格式。
-COMMANDS = ("transcribe", "embed", "all")
-HELP_FLAGS = ("-h", "--help", "-help")
-
 # Whisper 有时会把没有说话的部分识别为以下字符串，这里统一过滤掉。
 BLOCKED_PHRASES = (
     "请不吝点赞 订阅 转发 打赏支持明镜与点点栏目",
@@ -212,7 +208,7 @@ def add_embed_options(parser: argparse.ArgumentParser) -> None:
 
 
 def build_command_parser() -> argparse.ArgumentParser:
-    """构建推荐的新式 CLI：transcribe、embed、all 三个子命令。"""
+    """构建 CLI：transcribe、embed、all 三个子命令。"""
     parser = argparse.ArgumentParser(
         description="VoxSub：多功能 Whisper 字幕工具，生成 SRT、封装 MKV，或一步完成。"
     )
@@ -220,7 +216,6 @@ def build_command_parser() -> argparse.ArgumentParser:
 
     transcribe_parser = subparsers.add_parser("transcribe", help="从媒体文件生成 SRT 字幕")
     transcribe_parser.add_argument("media", type=Path, help="媒体文件路径")
-    transcribe_parser.add_argument("legacy_language", nargs="?", help=argparse.SUPPRESS)
     add_transcribe_options(transcribe_parser)
 
     embed_parser = subparsers.add_parser("embed", help="把已有字幕封装进 MKV")
@@ -232,35 +227,9 @@ def build_command_parser() -> argparse.ArgumentParser:
 
     all_parser = subparsers.add_parser("all", help="生成 SRT 后封装为 MKV")
     all_parser.add_argument("media", type=Path, help="媒体文件路径")
-    all_parser.add_argument("legacy_language", nargs="?", help=argparse.SUPPRESS)
     add_transcribe_options(all_parser)
     add_embed_options(all_parser)
     return parser
-
-
-def build_legacy_parser() -> argparse.ArgumentParser:
-    """构建旧版 CLI，兼容 python voxsub.py video.mp4 --embed 这类用法。"""
-    parser = argparse.ArgumentParser(
-        description="使用 OpenAI Whisper 生成 SRT 字幕，并可封装到 MKV。"
-    )
-    parser.add_argument("media", type=Path, help="媒体文件路径")
-    parser.add_argument("legacy_language", nargs="?", help=argparse.SUPPRESS)
-    add_transcribe_options(parser)
-    parser.add_argument("--embed", action="store_true", help="生成字幕后封装为 MKV")
-    parser.add_argument("--subtitle", type=Path, help="跳过识别，直接把已有 SRT 封装到 MKV")
-    add_embed_options(parser)
-    return parser
-
-
-def should_use_command_parser(argv: list[str]) -> bool:
-    """判断本次调用应该走新式子命令解析，还是旧版兼容解析。"""
-    return not argv or argv[0] in (*COMMANDS, *HELP_FLAGS)
-
-
-def apply_legacy_language(args: argparse.Namespace) -> None:
-    """兼容旧用法中的第二个位置参数语言代码。"""
-    if getattr(args, "legacy_language", None) and not args.language:
-        args.language = args.legacy_language
 
 
 def subtitle_for_embed(args: argparse.Namespace) -> Path:
@@ -270,9 +239,7 @@ def subtitle_for_embed(args: argparse.Namespace) -> Path:
 
 
 def run_command(args: argparse.Namespace) -> None:
-    """执行新式子命令。"""
-    apply_legacy_language(args)
-
+    """执行子命令。"""
     if args.command == "transcribe":
         transcribe_to_srt(args)
         return
@@ -301,31 +268,14 @@ def run_command(args: argparse.Namespace) -> None:
     raise RuntimeError(f"未知命令：{args.command}")
 
 
-def run_legacy(args: argparse.Namespace) -> None:
-    """执行旧版兼容参数格式。"""
-    apply_legacy_language(args)
-    subtitle_path = args.subtitle.expanduser().resolve() if args.subtitle else transcribe_to_srt(args)
-    if args.embed or args.subtitle:
-        embed_subtitles(
-            args.media,
-            subtitle_path,
-            args.output_video,
-            overwrite=args.overwrite,
-            language=normalize_language(args.language)[0],
-        )
-
-
 def main(argv: list[str] | None = None) -> int:
     """程序入口：解析参数、执行任务，并把常见异常转换成命令行错误码。"""
     argv = sys.argv[1:] if argv is None else argv
-    parser = build_command_parser() if should_use_command_parser(argv) else build_legacy_parser()
+    parser = build_command_parser()
     args = parser.parse_args(argv)
 
     try:
-        if getattr(args, "command", None):
-            run_command(args)
-        else:
-            run_legacy(args)
+        run_command(args)
     except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

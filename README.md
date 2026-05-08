@@ -50,7 +50,7 @@ pipx install --editable --python python3.12 .
 
 ## 使用方法
 
-### 统一入口
+### 新版子命令
 
 生成 `.srt` 字幕：
 
@@ -107,16 +107,6 @@ voxsub all <媒体文件路径> [选项]
 - `--device auto`：自动选择 `mps`、`cuda` 或 `cpu`。
 - `--output-video output.mkv`：指定封装后的 MKV 输出路径。
 - `--overwrite`：覆盖已有输出文件。
-
-### 兼容旧用法
-
-旧版统一入口参数仍然可用：
-
-```bash
-voxsub <媒体文件路径> --language zh-Hans
-voxsub <媒体文件路径> --language zh-Hans --embed
-voxsub <媒体文件路径> --subtitle <字幕文件路径>
-```
 
 ## 开源许可
 
