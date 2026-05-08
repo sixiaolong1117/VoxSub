@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-files:
+    name: Build release files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve release tag
+        id: release
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+(\.[0-9]+){1,2}([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Release tag must look like v0.1.0; got: $tag" >&2
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Python package artifacts
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist --wheel
+
+      - name: Add Homebrew-friendly source archive
+        run: |
+          tag="${{ steps.release.outputs.tag }}"
+          version="${{ steps.release.outputs.version }}"
+          git archive \
+            --format=tar.gz \
+            --prefix="voxsub-${version}/" \
+            --output="dist/voxsub-${version}-source.tar.gz" \
+            HEAD
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          shasum -a 256 * > SHA256SUMS
+
+      - name: Show release files
+        run: |
+          ls -lh dist
+          cat dist/SHA256SUMS
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* \
+              --title "$RELEASE_TAG" \
+              --notes "Release artifacts for $RELEASE_TAG."
+          fi
