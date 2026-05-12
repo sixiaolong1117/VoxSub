@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "voxsub"
-version = "0.1.0"
+version = "0.1.1"
 description = "VoxSub: transcribe media to SRT subtitles and embed subtitles into MKV files."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import platform
 import shutil
 import subprocess
 import sys
@@ -23,21 +24,48 @@ def normalize_language(language: str | None) -> tuple[str | None, bool]:
     return language, False
 
 
-def select_device(requested_device: str) -> str:
-    """按优先级选择运行设备：用户指定 > Apple MPS > CUDA > CPU。"""
-    if requested_device != "auto":
-        return requested_device
-
+def torch_backends() -> tuple[Any | None, bool, bool]:
+    """检测 PyTorch 以及当前机器可用的 CUDA/MPS 后端。"""
     try:
         import torch
     except ImportError:
-        return "cpu"
+        return None, False, False
 
     mps_backend = getattr(torch.backends, "mps", None)
-    if mps_backend is not None and mps_backend.is_available():
-        return "mps"
-    if torch.cuda.is_available():
+    mps_available = mps_backend is not None and mps_backend.is_available()
+    return torch, torch.cuda.is_available(), mps_available
+
+
+def select_device(requested_device: str) -> str:
+    """按平台和可用后端选择运行设备：用户指定 > CUDA/MPS > CPU。"""
+    torch, cuda_available, mps_available = torch_backends()
+
+    if requested_device == "cpu":
+        return "cpu"
+    if requested_device == "cuda":
+        if not cuda_available:
+            raise RuntimeError(
+                "请求使用 CUDA，但当前 PyTorch 没有检测到可用的 NVIDIA GPU/CUDA。"
+                "如果使用 pipx 安装 voxsub，请在 voxsub 的 pipx 环境中安装 CUDA 版 PyTorch。"
+            )
         return "cuda"
+    if requested_device == "mps":
+        if not mps_available:
+            raise RuntimeError("请求使用 MPS，但当前 PyTorch 没有检测到可用的 Apple Silicon MPS 后端。")
+        return "mps"
+    if requested_device != "auto":
+        return requested_device
+
+    if torch is None:
+        return "cpu"
+
+    # Windows + NVIDIA 的常见目标是 CUDA；macOS Apple Silicon 则优先 MPS。
+    if platform.system() == "Darwin" and mps_available:
+        return "mps"
+    if cuda_available:
+        return "cuda"
+    if mps_available:
+        return "mps"
     return "cpu"
 
 
@@ -50,6 +78,35 @@ def resolve_fp16(fp16: str, device: str) -> bool:
 
     # Apple Silicon 的 MPS 后端使用 fp32 更稳定；CUDA 通常可以使用 fp16。
     return device == "cuda"
+
+
+def describe_device(device: str) -> str:
+    """返回用于日志展示的设备说明。"""
+    if device != "cuda":
+        return device
+
+    try:
+        import torch
+
+        return f"cuda ({torch.cuda.get_device_name(0)})"
+    except Exception:
+        return "cuda"
+
+
+def ffmpeg_install_hint() -> str:
+    """按当前平台给出 ffmpeg 安装提示。"""
+    system = platform.system()
+    if system == "Windows":
+        return "Windows 可执行：winget install Gyan.FFmpeg，或使用 Scoop/Chocolatey 安装 ffmpeg 并加入 PATH。"
+    if system == "Darwin":
+        return "macOS 可执行：brew install ffmpeg。"
+    return "Linux 可使用系统包管理器安装，例如：sudo apt install ffmpeg。"
+
+
+def ensure_ffmpeg_available() -> None:
+    """Whisper 转写和 MKV 封装都依赖 ffmpeg。"""
+    if shutil.which("ffmpeg") is None:
+        raise RuntimeError(f"未找到 ffmpeg。{ffmpeg_install_hint()}")
 
 
 def make_subtitles(
@@ -98,6 +155,7 @@ def transcribe_to_srt(args: argparse.Namespace) -> Path:
     media_path = args.media.expanduser().resolve()
     if not media_path.is_file():
         raise FileNotFoundError(f"{media_path} is not a valid file.")
+    ensure_ffmpeg_available()
 
     # whisper 和相关模型较重，放到真正转写时再导入，让 --help 等命令更快。
     import whisper
@@ -109,7 +167,7 @@ def transcribe_to_srt(args: argparse.Namespace) -> Path:
     device = select_device(args.device)
     fp16 = resolve_fp16(args.fp16, device)
 
-    print(f"加载 Whisper 模型：{args.model}，设备：{device}，fp16：{fp16}")
+    print(f"加载 Whisper 模型：{args.model}，设备：{describe_device(device)}，fp16：{fp16}")
     model = whisper.load_model(args.model, device=device)
 
     # result["segments"] 包含每段字幕的 start/end/text，是后续生成 SRT 的核心数据。
@@ -135,8 +193,7 @@ def embed_subtitles(
     language: str | None,
 ) -> Path:
     """使用 ffmpeg 把 SRT 字幕流封装进 MKV，视频和音频保持 copy。"""
-    if shutil.which("ffmpeg") is None:
-        raise RuntimeError("未找到 ffmpeg。macOS 可执行：brew install ffmpeg")
+    ensure_ffmpeg_available()
 
     media_path = media_path.expanduser().resolve()
     subtitle_path = subtitle_path.expanduser().resolve()
@@ -189,7 +246,7 @@ def add_transcribe_options(parser: argparse.ArgumentParser) -> None:
         "--device",
         default="auto",
         choices=("auto", "mps", "cpu", "cuda"),
-        help="运行设备；auto 会在 Apple Silicon 上优先使用 mps",
+        help="运行设备；auto 会在 Windows/NVIDIA 上使用 cuda，在 Apple Silicon 上使用 mps",
     )
     parser.add_argument(
         "--fp16",

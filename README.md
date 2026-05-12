@@ -1,113 +1,193 @@
-# Whisper Python Script
+# VoxSub
 
-VoxSub 是一个多功能 Whisper 字幕工具，可以将媒体文件的音频识别成 `.srt` 字幕，也可以把已有字幕封装进 `.mkv`。安装后可直接在终端调用 `voxsub`，支持 macOS 和 Apple Silicon（M 系列，包括 M5）上的 `mps` 加速。
+VoxSub 是一个 Whisper 字幕命令行工具，用于：
 
-## 安装
+- 从媒体文件生成 `.srt` 字幕
+- 把已有 `.srt` 字幕封装进 `.mkv`
+- 一步完成转写和封装
 
-推荐使用 `pipx` 安装。它会为 VoxSub 创建独立虚拟环境，同时把 `voxsub` 命令放到全局 PATH 中。这样不用每次激活虚拟环境，也不会依赖系统 Python 环境里的包。
+支持的运行设备：
+
+- `cuda`：NVIDIA GPU
+- `mps`：Apple Silicon
+- `cpu`：通用 CPU 回退
+
+默认 `--device auto` 会自动选择可用设备。macOS 上优先使用 `mps`，Windows 上检测到 CUDA 时使用 `cuda`，否则使用 `cpu`。
+
+## 依赖
+
+- Python 3.11+
+- ffmpeg
+- PyTorch
+- openai-whisper
+- OpenCC
+- pysrt
+
+Python 依赖由项目自动安装；`ffmpeg` 需要先安装到系统 PATH。
+
+安装 ffmpeg：
 
 ```bash
-brew install python@3.12 ffmpeg pipx
-pipx ensurepath
+# macOS
+brew install ffmpeg
+
+# Windows
+winget install Gyan.FFmpeg
 ```
 
-第一次执行 `pipx ensurepath` 后，如果当前终端找不到 `voxsub`，请重开一个终端窗口。
+## 使用 pipx 安装
 
-安装 VoxSub：
+先安装 `pipx`：
 
 ```bash
-git clone https://github.com/SIXiaolong1117/WhisperPythonScript.git
-cd WhisperPythonScript
+# macOS
+brew install pipx
+
+# Windows
+py -m pip install --user pipx
+```
+
+安装后执行：
+
+```bash
+# macOS
+pipx ensurepath
+
+# Windows
+py -m pipx ensurepath
+```
+
+如果当前终端仍然找不到 `pipx` 或 `voxsub`，请重开一个终端窗口。
+
+推荐用 `pipx` 把 VoxSub 安装成全局命令：
+
+```bash
+git clone https://github.com/SIXiaolong1117/VoxSub.git
+cd VoxSub
 pipx install --python python3.12 .
 ```
 
-> 第一次运行会下载 Whisper 模型。`large` 模型体积和内存占用较大，如果内存紧张，可以先用 `--model medium` 或 `--model small`。
-
-安装完成后检查命令：
+安装后检查：
 
 ```bash
 voxsub --help
 ```
 
-更新本地代码后重新安装：
+如果正在开发或修改本项目，可以使用可编辑安装：
 
 ```bash
-cd WhisperPythonScript
-pipx reinstall voxsub
-```
-
-### 开发安装
-
-如果你正在修改代码，也可以用可编辑安装：
-
-```bash
-cd WhisperPythonScript
-pipx uninstall voxsub
+pipx uninstall voxsub   # 卸载之前的安装
 pipx install --editable --python python3.12 .
 ```
 
-可编辑安装后，修改 `voxsub.py` 通常会直接反映到 `voxsub` 命令中。
+## CUDA 和 MPS
 
-## 使用方法
-
-### 新版子命令
-
-生成 `.srt` 字幕：
+VoxSub 的设备选择由 `--device` 控制：
 
 ```bash
-voxsub transcribe <媒体文件路径> --language zh-Hans
+voxsub transcribe video.mp4 --device auto
+voxsub transcribe video.mp4 --device cuda
+voxsub transcribe video.mp4 --device mps
+voxsub transcribe video.mp4 --device cpu
 ```
 
-生成 `.srt` 并封装为 `.mkv`：
+`--fp16 auto` 默认只在 CUDA 上启用 fp16，在 MPS/CPU 上关闭以提高稳定性。也可以手动指定：
 
 ```bash
-voxsub all <媒体文件路径> --language zh-Hans
+voxsub transcribe video.mp4 --device cuda --fp16 true
+voxsub transcribe video.mp4 --device mps --fp16 false
 ```
 
-把已有同名 `.srt` 封装到 `.mkv`：
+如果 `--device cuda` 报错，通常不是显卡没有 CUDA，而是 `voxsub` 的 pipx 独立环境里安装的 PyTorch 不支持 CUDA。先在 `voxsub` 环境中重装 CUDA 版 PyTorch，例如：
 
 ```bash
-voxsub embed <媒体文件路径>
+pipx runpip voxsub install --upgrade --force-reinstall torch --index-url https://download.pytorch.org/whl/cu121
 ```
 
-把指定 `.srt` 封装到 `.mkv`：
+具体 CUDA 版本请以 PyTorch 官网给出的安装命令为准。
+
+Windows 上可以这样检查 `voxsub` 环境里的 PyTorch 是否能看到 CUDA：
+
+```powershell
+pipx runpip voxsub show torch
+pipx runpip voxsub install --upgrade --force-reinstall torch --index-url https://download.pytorch.org/whl/cu121
+voxsub transcribe video.mp4 --device cuda
+```
+
+如果仍然不可用，请确认 NVIDIA 驱动正常，并且安装的 CUDA 版 PyTorch 与当前 Python 版本兼容。
+
+## 命令
+
+### 生成字幕
 
 ```bash
-voxsub embed <媒体文件路径> <字幕文件路径>
+voxsub transcribe <媒体文件> [选项]
 ```
 
-指定模型、设备和输出路径：
+示例：
 
 ```bash
-voxsub transcribe video.mp4 --language zh --model medium --device auto -o video.srt
+voxsub transcribe video.mp4 --language zh-Hans
+voxsub transcribe video.mp4 --language en --model medium -o video.srt
 ```
 
-`--device auto` 会在 Apple Silicon 上优先使用 `mps`。为了提高稳定性，脚本默认只在 CUDA 上启用 fp16；如果你确认当前 PyTorch/Whisper 组合在 MPS fp16 下表现正常，可以手动使用：
+`transcribe` 常用选项：
+
+- `-l, --language`：Whisper 语言代码，例如 `zh`、`en`、`ja`；`zh-Hans` 会额外把中文转为简体。
+- `-m, --model`：Whisper 模型名，默认 `large`。
+- `--device`：`auto`、`cuda`、`mps` 或 `cpu`，默认 `auto`。
+- `--fp16`：`auto`、`true` 或 `false`，默认 `auto`。
+- `-o, --output`：输出 `.srt` 路径，默认与媒体同名。
+- `--verbose`：显示 Whisper 识别进度。
+
+### 封装字幕
 
 ```bash
-voxsub transcribe video.mp4 --device mps --fp16 true
+voxsub embed <媒体文件> [字幕文件] [选项]
 ```
 
-### 命令说明
+如果不指定字幕文件，默认使用媒体同名 `.srt`。
+
+示例：
 
 ```bash
-voxsub transcribe <媒体文件路径> [选项]
-voxsub embed <媒体文件路径> [字幕文件路径] [选项]
-voxsub all <媒体文件路径> [选项]
+voxsub embed video.mp4
+voxsub embed video.mp4 subtitle.srt
+voxsub embed video.mp4 -s subtitle.srt --output-video video.mkv --overwrite
 ```
 
-- `transcribe`：只生成 `.srt` 字幕。
-- `embed`：跳过识别，把已有 `.srt` 封装为 `.mkv`。
-- `all`：先生成 `.srt`，再封装为 `.mkv`。
+`embed` 常用选项：
 
-常用选项：
-
-- `--language zh-Hans`：按中文识别，并将繁体转换为简体。
-- `--model medium`：指定 Whisper 模型，默认 `large`。
-- `--device auto`：自动选择 `mps`、`cuda` 或 `cpu`。
-- `--output-video output.mkv`：指定封装后的 MKV 输出路径。
+- `[字幕文件]` 或 `-s, --subtitle`：要封装的 `.srt` 文件。
+- `-l, --language`：写入字幕流语言元数据；`zh-Hans` 会写入 `zh`。
+- `--output-video`：输出 `.mkv` 路径，默认与媒体同名。
 - `--overwrite`：覆盖已有输出文件。
 
-## 开源许可
+### 转写并封装
+
+```bash
+voxsub all <媒体文件> [选项]
+```
+
+`all` 会先生成 `.srt`，再把它封装进 `.mkv`。
+
+示例：
+
+```bash
+voxsub all video.mp4 --language zh-Hans --model medium --output-video video.mkv
+```
+
+`all` 支持 `transcribe` 的转写选项，也支持 `embed` 的输出选项：
+
+- `-l, --language`
+- `-m, --model`
+- `--device`
+- `--fp16`
+- `-o, --output`
+- `--verbose`
+- `--output-video`
+- `--overwrite`
+
+## 许可
 
 [MIT License](./LICENSE)
