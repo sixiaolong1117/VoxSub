@@ -14,6 +14,7 @@ from typing import Any
 # Whisper 有时会把没有说话的部分识别为以下字符串，这里统一过滤掉。
 BLOCKED_PHRASES = (
     "请不吝点赞 订阅 转发 打赏支持明镜与点点栏目",
+    "明镜与点点栏目"
 )
 
 
@@ -46,6 +47,7 @@ def select_device(requested_device: str) -> str:
         if not cuda_available:
             raise RuntimeError(
                 "请求使用 CUDA，但当前 PyTorch 没有检测到可用的 NVIDIA GPU/CUDA。"
+                "如果使用桌面端 .py 脚本模式，请在项目 .venv 中安装 CUDA 版 PyTorch；"
                 "如果使用 pipx 安装 voxsub，请在 voxsub 的 pipx 环境中安装 CUDA 版 PyTorch。"
             )
         return "cuda"

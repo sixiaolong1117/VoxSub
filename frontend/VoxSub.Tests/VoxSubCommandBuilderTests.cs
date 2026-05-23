@@ -86,6 +86,22 @@ public class VoxSubCommandBuilderTests
     }
 
     [Fact]
+    public void Transcribe_AutoLanguage_NotAdded()
+    {
+        var job = new VoxSubJob
+        {
+            CommandKind = VoxSubCommandKind.Transcribe,
+            MediaPath = @"C:\video.mp4",
+            Language = "auto"
+        };
+
+        var args = VoxSubCommandBuilder.BuildArguments(job);
+
+        Assert.DoesNotContain("--language", args);
+        Assert.DoesNotContain("auto", args);
+    }
+
+    [Fact]
     public void Transcribe_AllNullOptionals_OnlyRequiredArgs()
     {
         var job = new VoxSubJob

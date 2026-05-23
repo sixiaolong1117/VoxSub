@@ -14,6 +14,8 @@ namespace VoxSub.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private static string L(string key) => Localization.Instance[key];
+
     // ----- 命令选择 -----
     [ObservableProperty]
     private VoxSubCommandKind _selectedCommandKind = VoxSubCommandKind.Transcribe;
@@ -51,9 +53,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ----- 参数 -----
     [ObservableProperty]
-    private string _language = string.Empty;
+    private string _language = "auto";
 
-    public List<string> LanguageOptions { get; } = ["", "zh", "zh-Hans", "en", "ja", "ko", "fr", "de", "es"];
+    public List<string> LanguageOptions { get; } = ["auto", "zh", "zh-Hans", "en", "ja", "ko", "fr", "de", "es"];
 
     [ObservableProperty]
     private string _model = "large";
@@ -78,10 +80,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ----- 状态 -----
     [ObservableProperty]
-    private string _statusText = "空闲";
+    private bool _isRunning;
 
     [ObservableProperty]
-    private bool _isRunning;
+    private string _statusText = L("StatusIdle");
 
     // ----- 日志 -----
     [ObservableProperty]
@@ -154,7 +156,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseMedia()
     {
-        var path = await BrowseFileAsync("选择媒体文件", "所有媒体文件|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.mp3;*.wav;*.m4a;*.flac|所有文件|*.*");
+        var path = await BrowseFileAsync(
+            L("SelectMediaFile"),
+            $"{L("AllMediaFiles")}|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.mp3;*.wav;*.m4a;*.flac|{L("AllFiles")}|*.*");
         if (path is not null)
             MediaPath = path;
     }
@@ -162,7 +166,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseSubtitle()
     {
-        var path = await BrowseFileAsync("选择字幕文件", "SRT 字幕|*.srt|所有文件|*.*");
+        var path = await BrowseFileAsync(
+            L("SelectSubtitleFile"),
+            $"{L("SrtSubtitles")}|*.srt|{L("AllFiles")}|*.*");
         if (path is not null)
             SubtitlePath = path;
     }
@@ -170,7 +176,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseOutputSrt()
     {
-        var path = await SaveFileAsync("选择 SRT 输出路径", "SRT 字幕|*.srt");
+        var path = await SaveFileAsync(
+            L("SelectSrtOutput"),
+            $"{L("SrtSubtitles")}|*.srt");
         if (path is not null)
             OutputSrtPath = path;
     }
@@ -178,7 +186,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseOutputVideo()
     {
-        var path = await SaveFileAsync("选择 MKV 输出路径", "MKV 视频|*.mkv");
+        var path = await SaveFileAsync(
+            L("SelectMkvOutput"),
+            $"{L("MkvVideos")}|*.mkv");
         if (path is not null)
             OutputVideoPath = path;
     }
@@ -191,10 +201,10 @@ public partial class MainWindowViewModel : ViewModelBase
         var errors = Validate();
         if (errors.Count > 0)
         {
-            AppendLog("[错误] 参数校验失败：");
+            AppendLog(L("ErrorValidationFailed"));
             foreach (var err in errors)
                 AppendLog($"  - {err}");
-            StatusText = "参数错误";
+            StatusText = L("StatusParamError");
             return;
         }
 
@@ -203,8 +213,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var ffmpeg = ToolLocator.FindFfmpeg(settings.FfmpegPath);
         if (ffmpeg is null)
         {
-            AppendLog("[错误] 未找到 ffmpeg。请在设置中选择 ffmpeg 可执行文件，或将 ffmpeg 加入 PATH。");
-            StatusText = "工具链缺失";
+            AppendLog(L("ErrorFfmpegNotFound"));
+            StatusText = L("StatusToolchainMissing");
             return;
         }
 
@@ -212,14 +222,14 @@ public partial class MainWindowViewModel : ViewModelBase
         var job = BuildJob();
 
         IsRunning = true;
-        StatusText = "准备环境…";
+        StatusText = L("StatusPreparing");
         _cts = new CancellationTokenSource();
 
         try
         {
-            if (!await VoxSubPythonEnvironment.EnsureReadyAsync(settings, AppendLog, _cts.Token))
+            if (!await VoxSubPythonEnvironment.EnsureReadyAsync(settings, Device, AppendLog, _cts.Token))
             {
-                StatusText = "环境未就绪";
+                StatusText = L("StatusEnvironmentNotReady");
                 return;
             }
 
@@ -229,19 +239,19 @@ public partial class MainWindowViewModel : ViewModelBase
                 foreach (var diagnostic in processResolution.Diagnostics)
                     AppendLog(diagnostic);
 
-                StatusText = "工具链缺失";
+                StatusText = L("StatusToolchainMissing");
                 return;
             }
 
-            StatusText = "运行中…";
+            StatusText = L("StatusRunning");
             var jobArgs = VoxSubCommandBuilder.BuildArguments(job);
             var processSpec = processResolution.Spec;
             var executable = processSpec.Executable;
             var allArgs = processSpec.PrefixArguments.ToList();
             allArgs.AddRange(jobArgs);
 
-            AppendLog($"[信息] 使用 ffmpeg：{ffmpeg}");
-            AppendLog($"[信息] 执行命令：{executable} {string.Join(" ", allArgs)}");
+            AppendLog($"{L("InfoUsingFfmpeg")}{ffmpeg}");
+            AppendLog($"{L("InfoExecuting")}{executable} {string.Join(" ", allArgs)}");
             AppendLog("");
 
             var exitCode = await VoxSubRunner.RunAsync(
@@ -255,27 +265,27 @@ public partial class MainWindowViewModel : ViewModelBase
             if (exitCode == 0)
             {
                 AppendLog("");
-                AppendLog("[完成] 任务成功。");
-                StatusText = "成功";
+                AppendLog(L("CompletedSuccess"));
+                StatusText = L("StatusSuccess");
             }
             else
             {
                 AppendLog("");
-                AppendLog($"[错误] 任务失败，退出码：{exitCode}");
-                StatusText = "失败";
+                AppendLog($"{L("ErrorFailedExitCode")}{exitCode}");
+                StatusText = L("StatusFailed");
             }
         }
         catch (OperationCanceledException)
         {
             AppendLog("");
-            AppendLog("[取消] 任务已被用户取消。");
-            StatusText = "已取消";
+            AppendLog(L("Cancelled"));
+            StatusText = L("StatusCancelled");
         }
         catch (Exception ex)
         {
             AppendLog("");
-            AppendLog($"[异常] {ex.Message}");
-            StatusText = "异常";
+            AppendLog($"{L("Exception")}{ex.Message}");
+            StatusText = L("StatusError");
         }
         finally
         {
@@ -310,27 +320,27 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (string.IsNullOrWhiteSpace(MediaPath))
         {
-            errors.Add("请选择媒体文件。");
+            errors.Add(L("ErrorSelectMedia"));
         }
         else if (!File.Exists(MediaPath))
         {
-            errors.Add($"媒体文件不存在：{MediaPath}");
+            errors.Add($"{L("ErrorMediaNotExists")}{MediaPath}");
         }
 
         if (SelectedCommandKind == VoxSubCommandKind.Embed && !string.IsNullOrWhiteSpace(SubtitlePath))
         {
             if (!File.Exists(SubtitlePath))
-                errors.Add($"字幕文件不存在：{SubtitlePath}");
+                errors.Add($"{L("ErrorSubtitleNotExists")}{SubtitlePath}");
         }
 
-        // overtwrite 未勾选时检查输出文件是否已存在
+        // overwrite 未勾选时检查输出文件是否已存在
         if (!Overwrite)
         {
             if (!string.IsNullOrWhiteSpace(OutputSrtPath) && File.Exists(OutputSrtPath))
-                errors.Add($"SRT 输出文件已存在：{OutputSrtPath}（请勾选'覆盖已有文件'或更改输出路径）");
+                errors.Add(string.Format(L("ErrorSrtExists"), OutputSrtPath));
 
             if (!string.IsNullOrWhiteSpace(OutputVideoPath) && File.Exists(OutputVideoPath))
-                errors.Add($"MKV 输出文件已存在：{OutputVideoPath}（请勾选'覆盖已有文件'或更改输出路径）");
+                errors.Add(string.Format(L("ErrorMkvExists"), OutputVideoPath));
         }
 
         return errors;
@@ -345,13 +355,24 @@ public partial class MainWindowViewModel : ViewModelBase
             SubtitlePath = string.IsNullOrWhiteSpace(SubtitlePath) ? null : SubtitlePath,
             OutputSrtPath = string.IsNullOrWhiteSpace(OutputSrtPath) ? null : OutputSrtPath,
             OutputVideoPath = string.IsNullOrWhiteSpace(OutputVideoPath) ? null : OutputVideoPath,
-            Language = string.IsNullOrWhiteSpace(Language) ? null : Language,
+            Language = NormalizeLanguage(Language),
             Model = string.IsNullOrWhiteSpace(Model) ? null : Model,
             Device = string.IsNullOrWhiteSpace(Device) ? null : Device,
             Fp16 = string.IsNullOrWhiteSpace(Fp16) ? null : Fp16,
             Verbose = Verbose,
             Overwrite = Overwrite,
         };
+    }
+
+    private static string? NormalizeLanguage(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language) ||
+            string.Equals(language.Trim(), "auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return language.Trim();
     }
 
     private void AppendLog(string text)

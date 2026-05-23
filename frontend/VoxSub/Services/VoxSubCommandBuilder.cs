@@ -34,7 +34,7 @@ public static class VoxSubCommandBuilder
         args.Add("transcribe");
         args.Add(job.MediaPath);
 
-        AddOptionalArg(args, "--language", job.Language);
+        AddLanguageArg(args, job.Language);
         AddOptionalArg(args, "--model", job.Model);
         AddOptionalArg(args, "--device", job.Device);
         AddOptionalArg(args, "--fp16", job.Fp16);
@@ -52,7 +52,7 @@ public static class VoxSubCommandBuilder
         if (!string.IsNullOrWhiteSpace(job.SubtitlePath))
             args.Add(job.SubtitlePath);
 
-        AddOptionalArg(args, "--language", job.Language);
+        AddLanguageArg(args, job.Language);
         AddOptionalArg(args, "--output-video", job.OutputVideoPath);
 
         if (job.Overwrite)
@@ -64,7 +64,7 @@ public static class VoxSubCommandBuilder
         args.Add("all");
         args.Add(job.MediaPath);
 
-        AddOptionalArg(args, "--language", job.Language);
+        AddLanguageArg(args, job.Language);
         AddOptionalArg(args, "--model", job.Model);
         AddOptionalArg(args, "--device", job.Device);
         AddOptionalArg(args, "--fp16", job.Fp16);
@@ -87,5 +87,16 @@ public static class VoxSubCommandBuilder
 
         args.Add(flag);
         args.Add(value!);
+    }
+
+    private static void AddLanguageArg(List<string> args, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value.Trim(), "auto", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        AddOptionalArg(args, "--language", value.Trim());
     }
 }

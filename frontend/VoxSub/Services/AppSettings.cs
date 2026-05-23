@@ -7,4 +7,6 @@ public sealed class AppSettings
     public string PythonPath { get; set; } = ToolDefaults.PythonCommand;
 
     public string VoxSubPath { get; set; } = ToolDefaults.VoxSubCommand;
+
+    public string Language { get; set; } = Localization.DefaultCulture;
 }

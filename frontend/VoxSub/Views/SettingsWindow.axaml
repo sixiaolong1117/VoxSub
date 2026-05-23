@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:VoxSub.ViewModels"
+        xmlns:services="using:VoxSub.Services"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -8,7 +9,7 @@
         d:DesignHeight="420"
         x:Class="VoxSub.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="VoxSub 设置"
+        Title="{services:Localization Key=SettingsTitle}"
         Icon="/Assets/voxsub-icon.ico"
         Width="720"
         Height="420"
@@ -25,16 +26,16 @@
         <Border Grid.Row="0" Classes="titleBar">
             <Grid ColumnDefinitions="*,Auto" Margin="16,0" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Text="设置"
+                    <TextBlock Text="{services:Localization Key=Settings}"
                                FontSize="15"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center" />
-                    <TextBlock Text="工具路径"
+                    <TextBlock Text="{services:Localization Key=SettingsSubtitle}"
                                Classes="statusText"
                                VerticalAlignment="Center" />
                 </StackPanel>
                 <Button Grid.Column="1"
-                        Content="重新检测"
+                        Content="{services:Localization Key=RefreshDetect}"
                         Command="{Binding RefreshDetectedPathsCommand}"
                         MinWidth="88" />
             </Grid>
@@ -44,109 +45,134 @@
                       Margin="16,12,16,12"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <Border Classes="settingsCard">
-                <StackPanel Spacing="14">
-                    <TextBlock Text="二进制文件路径" Classes="sectionTitle" />
+            <StackPanel Spacing="12">
+                <Border Classes="settingsCard">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="{services:Localization Key=BinaryPathsSection}" Classes="sectionTitle" />
 
-                    <Grid RowDefinitions="Auto,Auto"
-                          ColumnDefinitions="96,*,Auto,Auto"
-                          RowSpacing="4"
-                          ColumnSpacing="6">
-                        <TextBlock Grid.Row="0"
-                                   Grid.Column="0"
-                                   Text="ffmpeg"
-                                   Classes="label" />
-                        <TextBox Grid.Row="0"
-                                 Grid.Column="1"
-                                 Text="{Binding FfmpegPath}"
-                                 PlaceholderText="ffmpeg.exe" />
-                        <Button Grid.Row="0"
-                                Grid.Column="2"
-                                Content="浏览..."
-                                Command="{Binding BrowseFfmpegCommand}"
-                                MinWidth="74" />
-                        <Button Grid.Row="0"
-                                Grid.Column="3"
-                                Content="默认"
-                                Command="{Binding ResetFfmpegCommand}"
-                                MinWidth="64" />
-                        <TextBlock Grid.Row="1"
-                                   Grid.Column="1"
-                                   Grid.ColumnSpan="3"
-                                   Text="{Binding FfmpegPathHint}"
-                                   Classes="hint"
-                                   Foreground="{Binding FfmpegPathHintColor}"
-                                   TextTrimming="CharacterEllipsis" />
-                    </Grid>
+                        <Grid RowDefinitions="Auto,Auto"
+                              ColumnDefinitions="96,*,Auto,Auto"
+                              RowSpacing="4"
+                              ColumnSpacing="6">
+                            <TextBlock Grid.Row="0"
+                                       Grid.Column="0"
+                                       Text="ffmpeg"
+                                       Classes="label" />
+                            <TextBox Grid.Row="0"
+                                     Grid.Column="1"
+                                     Text="{Binding FfmpegPath}"
+                                     Watermark="{services:Localization Key=FfmpegPlaceholder}" />
+                            <Button Grid.Row="0"
+                                    Grid.Column="2"
+                                    Content="{services:Localization Key=Browse}"
+                                    Command="{Binding BrowseFfmpegCommand}"
+                                    MinWidth="74" />
+                            <Button Grid.Row="0"
+                                    Grid.Column="3"
+                                    Content="{services:Localization Key=Default}"
+                                    Command="{Binding ResetFfmpegCommand}"
+                                    MinWidth="64" />
+                            <TextBlock Grid.Row="1"
+                                       Grid.Column="1"
+                                       Grid.ColumnSpan="3"
+                                       Text="{Binding FfmpegPathHint}"
+                                       Classes="hint"
+                                       Foreground="{Binding FfmpegPathHintColor}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </Grid>
 
-                    <Grid RowDefinitions="Auto,Auto"
-                          ColumnDefinitions="96,*,Auto,Auto"
-                          RowSpacing="4"
-                          ColumnSpacing="6">
-                        <TextBlock Grid.Row="0"
-                                   Grid.Column="0"
-                                   Text="Python"
-                                   Classes="label" />
-                        <TextBox Grid.Row="0"
-                                 Grid.Column="1"
-                                 Text="{Binding PythonPath}"
-                                 PlaceholderText="python.exe" />
-                        <Button Grid.Row="0"
-                                Grid.Column="2"
-                                Content="浏览..."
-                                Command="{Binding BrowsePythonCommand}"
-                                MinWidth="74" />
-                        <Button Grid.Row="0"
-                                Grid.Column="3"
-                                Content="默认"
-                                Command="{Binding ResetPythonCommand}"
-                                MinWidth="64" />
-                        <TextBlock Grid.Row="1"
-                                   Grid.Column="1"
-                                   Grid.ColumnSpan="3"
-                                   Text="{Binding PythonPathHint}"
-                                   Classes="hint"
-                                   Foreground="{Binding PythonPathHintColor}"
-                                   TextTrimming="CharacterEllipsis" />
-                    </Grid>
+                        <Grid RowDefinitions="Auto,Auto"
+                              ColumnDefinitions="96,*,Auto,Auto"
+                              RowSpacing="4"
+                              ColumnSpacing="6">
+                            <TextBlock Grid.Row="0"
+                                       Grid.Column="0"
+                                       Text="Python"
+                                       Classes="label" />
+                            <TextBox Grid.Row="0"
+                                     Grid.Column="1"
+                                     Text="{Binding PythonPath}"
+                                     Watermark="{services:Localization Key=PythonPlaceholder}" />
+                            <Button Grid.Row="0"
+                                    Grid.Column="2"
+                                    Content="{services:Localization Key=Browse}"
+                                    Command="{Binding BrowsePythonCommand}"
+                                    MinWidth="74" />
+                            <Button Grid.Row="0"
+                                    Grid.Column="3"
+                                    Content="{services:Localization Key=Default}"
+                                    Command="{Binding ResetPythonCommand}"
+                                    MinWidth="64" />
+                            <TextBlock Grid.Row="1"
+                                       Grid.Column="1"
+                                       Grid.ColumnSpan="3"
+                                       Text="{Binding PythonPathHint}"
+                                       Classes="hint"
+                                       Foreground="{Binding PythonPathHintColor}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </Grid>
 
-                    <Grid RowDefinitions="Auto,Auto"
-                          ColumnDefinitions="96,*,Auto,Auto"
-                          RowSpacing="4"
-                          ColumnSpacing="6">
-                        <TextBlock Grid.Row="0"
-                                   Grid.Column="0"
-                                   Text="VoxSub"
-                                   Classes="label" />
-                        <TextBox Grid.Row="0"
-                                 Grid.Column="1"
-                                 Text="{Binding VoxSubPath}"
-                                 PlaceholderText="voxsub.exe" />
-                        <Button Grid.Row="0"
-                                Grid.Column="2"
-                                Content="浏览..."
-                                Command="{Binding BrowseVoxSubCommand}"
-                                MinWidth="74" />
-                        <Button Grid.Row="0"
-                                Grid.Column="3"
-                                Content="默认"
-                                Command="{Binding ResetVoxSubCommand}"
-                                MinWidth="64" />
-                        <TextBlock Grid.Row="1"
-                                   Grid.Column="1"
-                                   Grid.ColumnSpan="3"
-                                   Text="{Binding VoxSubPathHint}"
-                                   Classes="hint"
-                                   Foreground="{Binding VoxSubPathHintColor}"
-                                   TextTrimming="CharacterEllipsis" />
-                    </Grid>
+                        <Grid RowDefinitions="Auto,Auto"
+                              ColumnDefinitions="96,*,Auto,Auto"
+                              RowSpacing="4"
+                              ColumnSpacing="6">
+                            <TextBlock Grid.Row="0"
+                                       Grid.Column="0"
+                                       Text="VoxSub"
+                                       Classes="label" />
+                            <TextBox Grid.Row="0"
+                                     Grid.Column="1"
+                                     Text="{Binding VoxSubPath}"
+                                     Watermark="{services:Localization Key=VoxSubPlaceholder}" />
+                            <Button Grid.Row="0"
+                                    Grid.Column="2"
+                                    Content="{services:Localization Key=Browse}"
+                                    Command="{Binding BrowseVoxSubCommand}"
+                                    MinWidth="74" />
+                            <Button Grid.Row="0"
+                                    Grid.Column="3"
+                                    Content="{services:Localization Key=Default}"
+                                    Command="{Binding ResetVoxSubCommand}"
+                                    MinWidth="64" />
+                            <TextBlock Grid.Row="1"
+                                       Grid.Column="1"
+                                       Grid.ColumnSpan="3"
+                                       Text="{Binding VoxSubPathHint}"
+                                       Classes="hint"
+                                       Foreground="{Binding VoxSubPathHintColor}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
 
-                    <TextBlock Text="{Binding StatusText}"
-                               Foreground="{DynamicResource SystemAccentColor}"
-                               Classes="statusText"
-                               IsVisible="{Binding HasStatusText}" />
-                </StackPanel>
-            </Border>
+                <Border Classes="settingsCard">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="{services:Localization Key=LanguageSettings}" Classes="sectionTitle" />
+
+                        <Grid ColumnDefinitions="96,*" ColumnSpacing="6">
+                            <TextBlock Grid.Column="0"
+                                       Text="{services:Localization Key=Language}"
+                                       Classes="label" />
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding LanguageOptions}"
+                                      SelectedItem="{Binding SelectedLanguage}"
+                                      MinWidth="140"
+                                      HorizontalAlignment="Left">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LanguageOption">
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="{Binding StatusText}"
+                           Foreground="{DynamicResource SystemAccentColor}"
+                           Classes="statusText"
+                           IsVisible="{Binding HasStatusText}" />
+            </StackPanel>
         </ScrollViewer>
 
         <Border Grid.Row="2"
@@ -160,15 +186,15 @@
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis" />
                 <Button Grid.Column="1"
-                        Content="关闭"
+                        Content="{services:Localization Key=Close}"
                         Command="{Binding CancelCommand}"
                         MinWidth="82" />
                 <Button Grid.Column="2"
-                        Content="应用"
+                        Content="{services:Localization Key=Apply}"
                         Command="{Binding ApplyCommand}"
                         MinWidth="82" />
                 <Button Grid.Column="3"
-                        Content="保存"
+                        Content="{services:Localization Key=Save}"
                         Command="{Binding SaveCommand}"
                         Classes="accent"
                         MinWidth="82" />

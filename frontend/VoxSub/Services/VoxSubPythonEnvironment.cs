@@ -25,6 +25,8 @@ public sealed record VoxSubPythonEnvironmentPlan(
 public static class VoxSubPythonEnvironment
 {
     private static readonly string[] RequiredModules = ["whisper", "opencc", "pysrt", "torch"];
+    private const string TorchCudaIndexUrlEnvironmentVariable = "VOXSUB_TORCH_CUDA_INDEX_URL";
+    private const string DefaultTorchCudaIndexUrl = "https://download.pytorch.org/whl/cu128";
 
     public static VoxSubPythonEnvironmentPlan CreatePlan(AppSettings settings)
     {
@@ -76,6 +78,7 @@ public static class VoxSubPythonEnvironment
 
     public static async Task<bool> EnsureReadyAsync(
         AppSettings settings,
+        string? requestedDevice,
         Action<string> onLog,
         CancellationToken cancellationToken)
     {
@@ -128,6 +131,9 @@ public static class VoxSubPythonEnvironment
 
         if (await HasRequiredModulesAsync(python, cancellationToken))
         {
+            if (!await EnsureCudaTorchReadyIfRequestedAsync(python, requestedDevice, onLog, cancellationToken))
+                return false;
+
             onLog($"[信息] Python 虚拟环境就绪：{python}");
             return true;
         }
@@ -171,6 +177,9 @@ public static class VoxSubPythonEnvironment
             return false;
         }
 
+        if (!await EnsureCudaTorchReadyIfRequestedAsync(python, requestedDevice, onLog, cancellationToken))
+            return false;
+
         onLog($"[信息] Python 虚拟环境就绪：{python}");
         return true;
     }
@@ -189,6 +198,71 @@ public static class VoxSubPythonEnvironment
             "missing = [m for m in mods if importlib.util.find_spec(m) is None]",
             "print(','.join(missing))",
             "sys.exit(1 if missing else 0)");
+
+        var result = await RunProcessCaptureAsync(python, ["-c", checkCode], cancellationToken);
+        return result.ExitCode == 0;
+    }
+
+    private static async Task<bool> EnsureCudaTorchReadyIfRequestedAsync(
+        string python,
+        string? requestedDevice,
+        Action<string> onLog,
+        CancellationToken cancellationToken)
+    {
+        if (!IsCudaRequested(requestedDevice))
+            return true;
+
+        if (await HasTorchCudaAsync(python, cancellationToken))
+            return true;
+
+        var cudaIndexUrl = ResolveTorchCudaIndexUrl();
+        onLog("[信息] 已请求 CUDA，但当前虚拟环境中的 PyTorch 不是 CUDA 可用版本。");
+        onLog($"[信息] 正在安装 CUDA 版 PyTorch：{cudaIndexUrl}");
+        onLog("[信息] 该步骤需要从 PyTorch 官方源下载较大的包，首次运行可能需要较久。");
+
+        var installExitCode = await RunProcessAsync(
+            python,
+            ["-m", "pip", "install", "--upgrade", "--force-reinstall", "torch", "--index-url", cudaIndexUrl],
+            onLog,
+            cancellationToken);
+
+        if (installExitCode != 0)
+        {
+            onLog($"[错误] CUDA 版 PyTorch 安装失败，退出码：{installExitCode}");
+            onLog($"[提示] 可手动执行：\"{python}\" -m pip install --upgrade --force-reinstall torch --index-url {cudaIndexUrl}");
+            return false;
+        }
+
+        if (await HasTorchCudaAsync(python, cancellationToken))
+            return true;
+
+        onLog("[错误] CUDA 版 PyTorch 安装后仍无法使用 CUDA。请检查 NVIDIA 驱动是否正常，或改用 CPU 设备。");
+        onLog($"[提示] 可手动检查：\"{python}\" -c \"import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())\"");
+        return false;
+    }
+
+    private static bool IsCudaRequested(string? requestedDevice)
+    {
+        return string.Equals(requestedDevice?.Trim(), "cuda", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveTorchCudaIndexUrl()
+    {
+        var configuredIndexUrl = Environment.GetEnvironmentVariable(TorchCudaIndexUrlEnvironmentVariable);
+        return string.IsNullOrWhiteSpace(configuredIndexUrl)
+            ? DefaultTorchCudaIndexUrl
+            : configuredIndexUrl.Trim();
+    }
+
+    private static async Task<bool> HasTorchCudaAsync(string python, CancellationToken cancellationToken)
+    {
+        var checkCode = string.Join(
+            "; ",
+            "import sys, torch",
+            "print(getattr(torch, '__version__', 'unknown'))",
+            "print(getattr(torch.version, 'cuda', None))",
+            "print(torch.cuda.is_available())",
+            "sys.exit(0 if torch.cuda.is_available() else 1)");
 
         var result = await RunProcessCaptureAsync(python, ["-c", checkCode], cancellationToken);
         return result.ExitCode == 0;

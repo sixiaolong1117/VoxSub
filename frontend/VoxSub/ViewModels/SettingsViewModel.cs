@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,13 +13,22 @@ namespace VoxSub.ViewModels;
 
 public partial class SettingsViewModel : ViewModelBase
 {
+    private static string L(string key) => Localization.Instance[key];
+
+    private static readonly IReadOnlyList<LanguageOption> AvailableLanguageOptions =
+    [
+        new(Localization.SystemCulture, "SystemLanguage"),
+        new(Localization.DefaultCulture, "Chinese"),
+        new(Localization.EnglishCulture, "English"),
+    ];
+
     private static readonly IReadOnlyList<FilePickerFileType> ExecutableFileTypes =
     [
-        new("可执行文件")
+        new(L("ExecutableFiles"))
         {
             Patterns = ["*.exe", "*.cmd", "*.bat", "*.ps1"],
         },
-        new("所有文件")
+        new(L("AllFiles"))
         {
             Patterns = ["*.*"],
         },
@@ -25,7 +36,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     private static readonly IReadOnlyList<FilePickerFileType> PythonScriptFileTypes =
     [
-        new("Python 脚本")
+        new(L("PythonScripts"))
         {
             Patterns = ["*.py"],
         },
@@ -70,7 +81,12 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusText = string.Empty;
 
+    [ObservableProperty]
+    private LanguageOption? _selectedLanguage;
+
     public bool HasStatusText => !string.IsNullOrWhiteSpace(StatusText);
+
+    public IReadOnlyList<LanguageOption> LanguageOptions => AvailableLanguageOptions;
 
     public SettingsViewModel()
     {
@@ -79,6 +95,8 @@ public partial class SettingsViewModel : ViewModelBase
         PythonPath = settings.PythonPath;
         VoxSubPath = settings.VoxSubPath;
         RefreshDetectedPaths();
+
+        SelectedLanguage = FindLanguageOption(settings.Language);
     }
 
     public event Action<bool>? RequestClose;
@@ -98,6 +116,18 @@ public partial class SettingsViewModel : ViewModelBase
         UpdateVoxSubPathStatus(value);
     }
 
+    partial void OnSelectedLanguageChanged(LanguageOption? value)
+    {
+        if (value is null)
+            return;
+
+        Localization.Instance.CurrentCulture = value.Code;
+
+        var settings = AppSettingsService.Load();
+        settings.Language = value.Code;
+        AppSettingsService.Save(settings);
+    }
+
     partial void OnStatusTextChanged(string value)
     {
         OnPropertyChanged(nameof(HasStatusText));
@@ -106,7 +136,7 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseFfmpeg()
     {
-        var path = await BrowseExecutableAsync("选择 ffmpeg 可执行文件", ToolDefaults.FfmpegCommand);
+        var path = await BrowseExecutableAsync(L("SelectFfmpeg"), ToolDefaults.FfmpegCommand);
         if (path is not null)
             FfmpegPath = path;
     }
@@ -114,7 +144,7 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowsePython()
     {
-        var path = await BrowseExecutableAsync("选择 Python 可执行文件", ToolDefaults.PythonCommand);
+        var path = await BrowseExecutableAsync(L("SelectPython"), ToolDefaults.PythonCommand);
         if (path is not null)
             PythonPath = path;
     }
@@ -122,7 +152,7 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseVoxSub()
     {
-        var path = await BrowseExecutableAsync("选择 VoxSub 命令或脚本", ToolDefaults.VoxSubCommand, PythonScriptFileTypes);
+        var path = await BrowseExecutableAsync(L("SelectVoxSub"), ToolDefaults.VoxSubCommand, PythonScriptFileTypes);
         if (path is not null)
             VoxSubPath = path;
     }
@@ -195,22 +225,21 @@ public partial class SettingsViewModel : ViewModelBase
 
     private bool TrySaveSettings()
     {
-        var settings = new AppSettings
-        {
-            FfmpegPath = FfmpegPath.Trim(),
-            PythonPath = PythonPath.Trim(),
-            VoxSubPath = VoxSubPath.Trim(),
-        };
+        var settings = AppSettingsService.Load();
+        settings.FfmpegPath = FfmpegPath.Trim();
+        settings.PythonPath = PythonPath.Trim();
+        settings.VoxSubPath = VoxSubPath.Trim();
+        settings.Language = SelectedLanguage?.Code ?? Localization.DefaultCulture;
 
         try
         {
             AppSettingsService.Save(settings);
-            StatusText = "设置已应用。";
+            StatusText = L("SettingsSaved");
             return true;
         }
         catch (Exception ex)
         {
-            StatusText = $"保存失败：{ex.Message}";
+            StatusText = $"{L("SettingsSaveFailed")}{ex.Message}";
             return false;
         }
     }
@@ -243,5 +272,36 @@ public partial class SettingsViewModel : ViewModelBase
         });
 
         return files.Count > 0 ? files[0].Path.LocalPath : null;
+    }
+
+    private LanguageOption FindLanguageOption(string? code)
+    {
+        return LanguageOptions.FirstOrDefault(option =>
+                   string.Equals(option.Code, code, StringComparison.OrdinalIgnoreCase))
+               ?? LanguageOptions.First(option => option.Code == Localization.DefaultCulture);
+    }
+}
+
+public sealed class LanguageOption : INotifyPropertyChanged
+{
+    public string Code { get; }
+    public string DisplayKey { get; }
+    public string DisplayName => Localization.Instance[DisplayKey];
+
+    public LanguageOption(string code, string displayKey)
+    {
+        Code = code;
+        DisplayKey = displayKey;
+        Localization.Instance.PropertyChanged += OnLocalizationChanged;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public override string ToString() => DisplayName;
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(Localization.CurrentCulture) or nameof(Localization.Strings))
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayName)));
     }
 }
