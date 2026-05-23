@@ -61,4 +61,44 @@ public class ToolPathResolverTests
         Assert.Equal(ToolPathLookupStatus.NotFoundInPath, result.Status);
         Assert.Null(result.ResolvedPath);
     }
+
+    [Fact]
+    public void Resolve_UnixUserLocalBinCommand_ReturnsFoundInPath()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+            return;
+
+        var commandName = "voxsub-test-tool-" + Guid.NewGuid().ToString("N");
+        var binDirectory = Path.Combine(homeDirectory, ".local", "bin");
+        var commandPath = Path.Combine(binDirectory, commandName);
+        var binDirectoryExists = Directory.Exists(binDirectory);
+
+        Directory.CreateDirectory(binDirectory);
+        File.WriteAllText(commandPath, "");
+
+        try
+        {
+            var result = ToolPathResolver.Resolve(commandName);
+
+            Assert.True(result.IsFound);
+            Assert.Equal(ToolPathLookupStatus.FoundInPath, result.Status);
+            Assert.Equal(commandPath, result.ResolvedPath);
+        }
+        finally
+        {
+            File.Delete(commandPath);
+            try
+            {
+                if (!binDirectoryExists)
+                    Directory.Delete(binDirectory);
+            }
+            catch
+            {
+            }
+        }
+    }
 }

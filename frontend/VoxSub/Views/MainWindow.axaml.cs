@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -13,8 +15,12 @@ public partial class MainWindow : Window
 
     private async void OpenSettings_Click(object? sender, RoutedEventArgs e)
     {
-        var settingsWindow = new SettingsWindow();
-        await settingsWindow.ShowDialog<bool?>(this);
+        await OpenSettingsAsync();
+    }
+
+    private async Task OpenSettingsAsync()
+    {
+        await App.ShowSettingsDialogAsync(this);
     }
 
     private void LogTextBox_TextChanged(object? sender, TextChangedEventArgs e)

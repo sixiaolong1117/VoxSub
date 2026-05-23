@@ -16,12 +16,33 @@ env:
   PROJECT_PATH: frontend/VoxSub/VoxSub.csproj
   TEST_PROJECT_PATH: frontend/VoxSub.Tests/VoxSub.Tests.csproj
   PYPROJECT_PATH: pyproject.toml
-  ARTIFACT_NAME: VoxSub-win-x64
   DOTNET_VERSION: 10.0.x
 
 jobs:
   build:
-    runs-on: windows-latest
+    name: ${{ matrix.artifact_name }}
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: pwsh
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+            artifact_name: VoxSub-win-x64
+            package_kind: windows
+          - os: macos-13
+            runtime: osx-x64
+            artifact_name: VoxSub-macos-x64
+            package_kind: macos
+          - os: macos-latest
+            runtime: osx-arm64
+            artifact_name: VoxSub-macos-arm64
+            package_kind: macos
 
     steps:
       - name: Checkout
@@ -53,7 +74,7 @@ jobs:
           Write-Host "Build version: $version"
 
       - name: Update version from tag and commit
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && matrix.package_kind == 'windows'
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
@@ -91,6 +112,16 @@ jobs:
           Set-Content -Path "$env:PYPROJECT_PATH" -Value $updated -Encoding UTF8NoBOM
           Write-Host "Applied version $version for current build"
 
+      - name: Apply tag version for current build
+        if: startsWith(github.ref, 'refs/tags/') && matrix.package_kind != 'windows'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $pyproject = Get-Content "$env:PYPROJECT_PATH" -Raw
+          $updated = [regex]::Replace($pyproject, '(?m)^version\s*=\s*"[^"]*"', "version = `"$version`"")
+          Set-Content -Path "$env:PYPROJECT_PATH" -Value $updated -Encoding UTF8NoBOM
+          Write-Host "Applied version $version for current build"
+
       - name: Restore app
         run: dotnet restore $env:PROJECT_PATH
 
@@ -103,20 +134,21 @@ jobs:
       - name: Test
         run: dotnet test $env:TEST_PROJECT_PATH --configuration Release --no-restore -p:Version=$env:BUILD_VERSION
 
-      - name: Publish win-x64
+      - name: Publish ${{ matrix.runtime }}
         run: >
           dotnet publish $env:PROJECT_PATH
           --configuration Release
-          --runtime win-x64
+          --runtime ${{ matrix.runtime }}
           --self-contained false
-          --output publish/${{ env.ARTIFACT_NAME }}
+          --output publish/${{ matrix.artifact_name }}
           -p:Version=$env:BUILD_VERSION
           -p:PublishSingleFile=false
 
-      - name: Package
+      - name: Package Windows
+        if: matrix.package_kind == 'windows'
         shell: pwsh
         run: |
-          $packageRoot = "publish/${{ env.ARTIFACT_NAME }}"
+          $packageRoot = "publish/${{ matrix.artifact_name }}"
 
           Copy-Item -Path "python" -Destination "$packageRoot/python" -Recurse -Force
           Copy-Item -Path "pyproject.toml" -Destination $packageRoot -Force
@@ -127,19 +159,73 @@ jobs:
           New-Item -ItemType Directory -Force artifacts | Out-Null
           Compress-Archive `
             -Path "$packageRoot/*" `
-            -DestinationPath "artifacts/${{ env.ARTIFACT_NAME }}.zip" `
+            -DestinationPath "artifacts/${{ matrix.artifact_name }}.zip" `
+            -Force
+
+      - name: Package macOS app
+        if: matrix.package_kind == 'macos'
+        shell: pwsh
+        run: |
+          $packageRoot = "publish/${{ matrix.artifact_name }}"
+          $appRoot = "bundle/${{ matrix.artifact_name }}/VoxSub.app"
+          $contentsRoot = "$appRoot/Contents"
+          $macosRoot = "$contentsRoot/MacOS"
+
+          New-Item -ItemType Directory -Force $macosRoot | Out-Null
+          Copy-Item -Path "$packageRoot/*" -Destination $macosRoot -Recurse -Force
+          Copy-Item -Path "python" -Destination "$macosRoot/python" -Recurse -Force
+          Copy-Item -Path "pyproject.toml" -Destination $macosRoot -Force
+          Copy-Item -Path "README.md" -Destination $macosRoot -Force
+          Copy-Item -Path "README_EN.md" -Destination $macosRoot -Force
+          Copy-Item -Path "LICENSE" -Destination $macosRoot -Force
+
+          $plist = @(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+            '<plist version="1.0">'
+            '<dict>'
+            '  <key>CFBundleDevelopmentRegion</key>'
+            '  <string>zh_CN</string>'
+            '  <key>CFBundleDisplayName</key>'
+            '  <string>VoxSub</string>'
+            '  <key>CFBundleExecutable</key>'
+            '  <string>VoxSub</string>'
+            '  <key>CFBundleIdentifier</key>'
+            '  <string>io.github.sixiaolong1117.voxsub</string>'
+            '  <key>CFBundleName</key>'
+            '  <string>VoxSub</string>'
+            '  <key>CFBundlePackageType</key>'
+            '  <string>APPL</string>'
+            '  <key>CFBundleShortVersionString</key>'
+            "  <string>$env:BUILD_VERSION</string>"
+            '  <key>CFBundleVersion</key>'
+            "  <string>$env:BUILD_VERSION</string>"
+            '  <key>LSMinimumSystemVersion</key>'
+            '  <string>11.0</string>'
+            '  <key>NSHighResolutionCapable</key>'
+            '  <true/>'
+            '</dict>'
+            '</plist>'
+          )
+          Set-Content -Path "$contentsRoot/Info.plist" -Value $plist -Encoding UTF8
+          chmod +x "$macosRoot/VoxSub"
+
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Compress-Archive `
+            -Path "$appRoot" `
+            -DestinationPath "artifacts/${{ matrix.artifact_name }}.zip" `
             -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: artifacts/${{ env.ARTIFACT_NAME }}.zip
+          name: ${{ matrix.artifact_name }}
+          path: artifacts/${{ matrix.artifact_name }}.zip
           if-no-files-found: error
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/${{ env.ARTIFACT_NAME }}.zip
+          files: artifacts/${{ matrix.artifact_name }}.zip
           generate_release_notes: true

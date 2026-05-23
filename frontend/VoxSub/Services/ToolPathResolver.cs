@@ -15,8 +15,7 @@ public static class ToolPathResolver
 
         if (!HasDirectorySeparator(normalizedPath))
         {
-            var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
-            foreach (var dir in paths)
+            foreach (var dir in GetExecutableSearchDirectories())
             {
                 foreach (var executableName in ExpandExecutableNames(normalizedPath))
                 {
@@ -62,6 +61,43 @@ public static class ToolPathResolver
     {
         return path.Contains(Path.DirectorySeparatorChar)
             || path.Contains(Path.AltDirectorySeparatorChar);
+    }
+
+    private static IEnumerable<string> GetExecutableSearchDirectories()
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
+        foreach (var path in paths)
+        {
+            if (!string.IsNullOrWhiteSpace(path) && seen.Add(path))
+                yield return path;
+        }
+
+        foreach (var path in GetPlatformFallbackDirectories())
+        {
+            if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path) && seen.Add(path))
+                yield return path;
+        }
+    }
+
+    private static IEnumerable<string> GetPlatformFallbackDirectories()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            yield break;
+
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(homeDirectory))
+        {
+            yield return Path.Combine(homeDirectory, ".local", "bin");
+            yield return Path.Combine(homeDirectory, ".pyenv", "shims");
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            yield return "/opt/homebrew/bin";
+            yield return "/usr/local/bin";
+            yield return "/opt/local/bin";
+        }
     }
 
     private static IEnumerable<string> ExpandExecutableNames(string executableName)
