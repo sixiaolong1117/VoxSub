@@ -187,10 +187,17 @@
                     </Border>
 
                     <Border Classes="settingsCard">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="{services:Localization Key=ParametersSection}" Classes="sectionTitle" />
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                              RowSpacing="10">
+                            <TextBlock Grid.Row="0"
+                                       Text="{services:Localization Key=ParametersSection}"
+                                       Classes="sectionTitle"
+                                       Margin="0,0,0,2" />
 
-                            <Grid ColumnDefinitions="72,*" IsEnabled="{Binding CanEdit}">
+                            <Grid Grid.Row="1"
+                                  ColumnDefinitions="96,*"
+                                  ColumnSpacing="6"
+                                  IsEnabled="{Binding CanEdit}">
                                 <TextBlock Grid.Column="0"
                                            Text="{services:Localization Key=Language}"
                                            Classes="label" />
@@ -198,59 +205,59 @@
                                           ItemsSource="{Binding ActiveLanguageOptions}"
                                           Text="{Binding Language}"
                                           IsEditable="True"
-                                          MinWidth="140"
-                                          HorizontalAlignment="Left" />
+                                          HorizontalAlignment="Stretch" />
                             </Grid>
 
-                            <Border Classes="groupCard"
-                                    IsVisible="{Binding IsWhisperParamsVisible}">
-                                <StackPanel Spacing="10">
-                                    <WrapPanel>
-                                        <StackPanel Orientation="Horizontal"
-                                                    Spacing="8"
-                                                    Margin="0,0,18,8">
-                                            <TextBlock Text="{services:Localization Key=Model}"
-                                                       Width="42"
-                                                       Classes="label" />
-                                            <ComboBox ItemsSource="{Binding ModelOptions}"
-                                                      SelectedItem="{Binding Model}"
-                                                      IsEnabled="{Binding CanEdit}"
-                                                      MinWidth="112" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal"
-                                                    Spacing="8"
-                                                    Margin="0,0,18,8">
-                                            <TextBlock Text="{services:Localization Key=Device}"
-                                                       Width="42"
-                                                       Classes="label" />
-                                            <ComboBox ItemsSource="{Binding DeviceOptions}"
-                                                      SelectedItem="{Binding Device}"
-                                                      IsEnabled="{Binding CanEdit}"
-                                                      MinWidth="96" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal"
-                                                    Spacing="8"
-                                                    Margin="0,0,18,8">
-                                            <TextBlock Text="{services:Localization Key=Fp16}"
-                                                       Width="42"
-                                                       Classes="label" />
-                                            <ComboBox ItemsSource="{Binding Fp16Options}"
-                                                      SelectedItem="{Binding Fp16}"
-                                                      IsEnabled="{Binding CanEdit}"
-                                                      MinWidth="96" />
-                                        </StackPanel>
-                                    </WrapPanel>
-                                    <CheckBox Content="{services:Localization Key=Verbose}"
-                                              IsChecked="{Binding Verbose}"
-                                              IsEnabled="{Binding CanEdit}" />
-                                </StackPanel>
-                            </Border>
+                            <Grid Grid.Row="2"
+                                  RowDefinitions="Auto,Auto"
+                                  ColumnDefinitions="96,*,80,*"
+                                  RowSpacing="10"
+                                  ColumnSpacing="6"
+                                  IsEnabled="{Binding CanEdit}"
+                                  IsVisible="{Binding IsWhisperParamsVisible}">
+                                <TextBlock Grid.Row="0"
+                                           Grid.Column="0"
+                                           Text="{services:Localization Key=Model}"
+                                           Classes="label" />
+                                <ComboBox Grid.Row="0"
+                                          Grid.Column="1"
+                                          ItemsSource="{Binding ModelOptions}"
+                                          SelectedItem="{Binding Model}"
+                                          HorizontalAlignment="Stretch" />
 
-                            <CheckBox Content="{services:Localization Key=Overwrite}"
-                                      IsChecked="{Binding Overwrite}"
-                                      IsEnabled="{Binding CanEdit}"
-                                      IsVisible="{Binding IsEmbedParamsVisible}" />
-                        </StackPanel>
+                                <TextBlock Grid.Row="0"
+                                           Grid.Column="2"
+                                           Text="{services:Localization Key=Device}"
+                                           Classes="label" />
+                                <ComboBox Grid.Row="0"
+                                          Grid.Column="3"
+                                          ItemsSource="{Binding DeviceOptions}"
+                                          SelectedItem="{Binding Device}"
+                                          HorizontalAlignment="Stretch" />
+
+                                <TextBlock Grid.Row="1"
+                                           Grid.Column="0"
+                                           Text="{services:Localization Key=Fp16}"
+                                           Classes="label" />
+                                <ComboBox Grid.Row="1"
+                                          Grid.Column="1"
+                                          ItemsSource="{Binding Fp16Options}"
+                                          SelectedItem="{Binding Fp16}"
+                                          HorizontalAlignment="Stretch" />
+                            </Grid>
+
+                            <WrapPanel Grid.Row="3"
+                                       IsEnabled="{Binding CanEdit}">
+                                <CheckBox Content="{services:Localization Key=Verbose}"
+                                          IsChecked="{Binding Verbose}"
+                                          IsVisible="{Binding IsWhisperParamsVisible}"
+                                          Margin="0,0,18,0" />
+                                <CheckBox Content="{services:Localization Key=Overwrite}"
+                                          IsChecked="{Binding Overwrite}"
+                                          IsVisible="{Binding IsEmbedParamsVisible}"
+                                          Margin="0,0,18,0" />
+                            </WrapPanel>
+                        </Grid>
                     </Border>
 
                 </StackPanel>
