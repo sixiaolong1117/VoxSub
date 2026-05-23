@@ -70,6 +70,9 @@
                     <Button Content="清空日志"
                             Command="{Binding ClearLogCommand}"
                             MinWidth="88" />
+                    <Button Content="设置"
+                            Click="OpenSettings_Click"
+                            MinWidth="74" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -256,29 +259,38 @@
                     Classes="settingsCard"
                     Padding="0">
                 <Grid RowDefinitions="Auto,*" Margin="16">
-                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
                         <TextBlock Text="日志输出"
                                    Classes="sectionTitle"
                                    Margin="0" />
-                        <TextBlock Grid.Column="1"
+                        <CheckBox x:Name="FollowLogCheckBox"
+                                  Grid.Column="1"
+                                  Content="跟随最新日志"
+                                  IsChecked="True"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,12,0" />
+                        <TextBlock Grid.Column="2"
                                    Text="{Binding StatusText}"
                                    Classes="statusText"
                                    VerticalAlignment="Center" />
                     </Grid>
 
-                    <ScrollViewer Grid.Row="1"
+                    <ScrollViewer x:Name="LogScrollViewer"
+                                  Grid.Row="1"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   Margin="-16,0"
                                   Padding="16,0">
-                        <TextBox Text="{Binding LogText}"
+                        <TextBox x:Name="LogTextBox"
+                                 Text="{Binding LogText}"
                                  Classes="mono borderless"
                                  IsReadOnly="True"
                                  TextWrapping="Wrap"
                                  AcceptsReturn="True"
                                  HorizontalAlignment="Stretch"
                                  VerticalAlignment="Stretch"
-                                 MinHeight="420" />
+                                 MinHeight="420"
+                                 TextChanged="LogTextBox_TextChanged" />
                     </ScrollViewer>
                 </Grid>
             </Border>

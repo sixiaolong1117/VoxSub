@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +24,8 @@ public sealed class VoxSubRunner
         List<string> arguments,
         Action<string> onStdOut,
         Action<string> onStdErr,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string>? environmentVariables = null)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -43,6 +45,14 @@ public sealed class VoxSubRunner
 
         // 设置 PYTHONUTF8=1 减少 Windows 中文乱码。
         startInfo.Environment["PYTHONUTF8"] = "1";
+
+        if (environmentVariables is not null)
+        {
+            foreach (var (key, value) in environmentVariables)
+            {
+                startInfo.Environment[key] = value;
+            }
+        }
 
         using var process = new Process { StartInfo = startInfo };
 
@@ -84,5 +94,22 @@ public sealed class VoxSubRunner
 
             onLine(line);
         }
+    }
+
+    public static IReadOnlyDictionary<string, string> BuildEnvironmentOverrides(AppSettings settings)
+    {
+        var result = new Dictionary<string, string>();
+        var resolvedFfmpegPath = ToolPathResolver.Resolve(settings.FfmpegPath).ResolvedPath;
+        var ffmpegDirectory = resolvedFfmpegPath is null ? null : Path.GetDirectoryName(resolvedFfmpegPath);
+
+        if (!string.IsNullOrWhiteSpace(ffmpegDirectory))
+        {
+            var currentPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            result["PATH"] = string.IsNullOrEmpty(currentPath)
+                ? ffmpegDirectory
+                : ffmpegDirectory + Path.PathSeparator + currentPath;
+        }
+
+        return result;
     }
 }

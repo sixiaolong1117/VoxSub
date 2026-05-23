@@ -199,11 +199,11 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         // 2. 预检工具链
-        var (executable, allArgs) = ResolveExecutableAndArgs();
-        if (executable is null)
+        var settings = AppSettingsService.Load();
+        var ffmpeg = ToolLocator.FindFfmpeg(settings.FfmpegPath);
+        if (ffmpeg is null)
         {
-            AppendLog("[错误] 未找到 voxsub 命令或 python + voxsub.py。");
-            AppendLog("  请确保已安装 voxsub，或已安装 python 且仓库内存在 python/voxsub.py。");
+            AppendLog("[错误] 未找到 ffmpeg。请在设置中选择 ffmpeg 可执行文件，或将 ffmpeg 加入 PATH。");
             StatusText = "工具链缺失";
             return;
         }
@@ -212,14 +212,35 @@ public partial class MainWindowViewModel : ViewModelBase
         var job = BuildJob();
 
         IsRunning = true;
-        StatusText = "运行中…";
+        StatusText = "准备环境…";
         _cts = new CancellationTokenSource();
 
         try
         {
+            if (!await VoxSubPythonEnvironment.EnsureReadyAsync(settings, AppendLog, _cts.Token))
+            {
+                StatusText = "环境未就绪";
+                return;
+            }
+
+            var processResolution = VoxSubProcessResolver.Resolve(settings);
+            if (processResolution.Spec is null)
+            {
+                foreach (var diagnostic in processResolution.Diagnostics)
+                    AppendLog(diagnostic);
+
+                StatusText = "工具链缺失";
+                return;
+            }
+
+            StatusText = "运行中…";
             var jobArgs = VoxSubCommandBuilder.BuildArguments(job);
+            var processSpec = processResolution.Spec;
+            var executable = processSpec.Executable;
+            var allArgs = processSpec.PrefixArguments.ToList();
             allArgs.AddRange(jobArgs);
 
+            AppendLog($"[信息] 使用 ffmpeg：{ffmpeg}");
             AppendLog($"[信息] 执行命令：{executable} {string.Join(" ", allArgs)}");
             AppendLog("");
 
@@ -228,7 +249,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 allArgs,
                 line => AppendLog(line),
                 line => AppendLog($"[stderr] {line}"),
-                _cts.Token);
+                _cts.Token,
+                VoxSubRunner.BuildEnvironmentOverrides(settings));
 
             if (exitCode == 0)
             {
@@ -312,27 +334,6 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return errors;
-    }
-
-    /// <summary>
-    /// 决定使用 voxsub 命令还是 python + voxsub.py。
-    /// 返回 (executable, 前置参数列表)。
-    /// </summary>
-    private (string? executable, List<string> prefixArgs) ResolveExecutableAndArgs()
-    {
-        // 优先使用 voxsub 命令。
-        var voxsubCmd = ToolLocator.FindVoxSubCommand();
-        if (voxsubCmd is not null)
-            return (voxsubCmd, []);
-
-        // 回退到 python + voxsub.py。
-        var python = ToolLocator.FindPython();
-        var voxsubPy = ToolLocator.FindVoxSubPy();
-
-        if (python is not null && voxsubPy is not null)
-            return (python, [voxsubPy]);
-
-        return (null, []);
     }
 
     private VoxSubJob BuildJob()

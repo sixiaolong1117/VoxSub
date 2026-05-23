@@ -1,0 +1,145 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+      - "*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_PATH: frontend/VoxSub/VoxSub.csproj
+  TEST_PROJECT_PATH: frontend/VoxSub.Tests/VoxSub.Tests.csproj
+  PYPROJECT_PATH: pyproject.toml
+  ARTIFACT_NAME: VoxSub-win-x64
+  DOTNET_VERSION: 10.0.x
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Resolve build version
+        id: version
+        shell: pwsh
+        run: |
+          $versionLine = Select-String -Path "$env:PYPROJECT_PATH" -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
+          if ($null -eq $versionLine) {
+            throw "Could not find version in $env:PYPROJECT_PATH"
+          }
+
+          $version = $versionLine.Matches[0].Groups[1].Value
+          if ("${{ github.ref }}" -like "refs/tags/*") {
+            $version = "${{ github.ref_name }}" -replace '^v', ''
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "BUILD_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Build version: $version"
+
+      - name: Update version from tag and commit
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = "${{ steps.version.outputs.version }}"
+          if ($version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') {
+            throw "Tag must look like v0.1.0 or 0.1.0; got: $tag"
+          }
+
+          Write-Host "Tag: $tag -> Version: $version"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          $defaultBranch = "${{ github.event.repository.default_branch }}"
+          git fetch origin $defaultBranch
+          git checkout $defaultBranch
+          git pull origin $defaultBranch
+
+          $pyproject = Get-Content "$env:PYPROJECT_PATH" -Raw
+          $updated = [regex]::Replace($pyproject, '(?m)^version\s*=\s*"[^"]*"', "version = `"$version`"")
+          if ($updated -eq $pyproject) {
+            Write-Host "$env:PYPROJECT_PATH already uses version $version"
+          } else {
+            Set-Content -Path "$env:PYPROJECT_PATH" -Value $updated -Encoding UTF8NoBOM
+            git add "$env:PYPROJECT_PATH"
+            git commit -m "Bump version to $version [skip ci]"
+            git push origin $defaultBranch
+            Write-Host "Committed version $version to $defaultBranch branch"
+          }
+
+          git checkout $tag
+
+          $pyproject = Get-Content "$env:PYPROJECT_PATH" -Raw
+          $updated = [regex]::Replace($pyproject, '(?m)^version\s*=\s*"[^"]*"', "version = `"$version`"")
+          Set-Content -Path "$env:PYPROJECT_PATH" -Value $updated -Encoding UTF8NoBOM
+          Write-Host "Applied version $version for current build"
+
+      - name: Restore app
+        run: dotnet restore $env:PROJECT_PATH
+
+      - name: Restore tests
+        run: dotnet restore $env:TEST_PROJECT_PATH
+
+      - name: Build
+        run: dotnet build $env:PROJECT_PATH --configuration Release --no-restore -p:Version=$env:BUILD_VERSION
+
+      - name: Test
+        run: dotnet test $env:TEST_PROJECT_PATH --configuration Release --no-restore -p:Version=$env:BUILD_VERSION
+
+      - name: Publish win-x64
+        run: >
+          dotnet publish $env:PROJECT_PATH
+          --configuration Release
+          --runtime win-x64
+          --self-contained false
+          --output publish/${{ env.ARTIFACT_NAME }}
+          -p:Version=$env:BUILD_VERSION
+          -p:PublishSingleFile=false
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $packageRoot = "publish/${{ env.ARTIFACT_NAME }}"
+
+          Copy-Item -Path "python" -Destination "$packageRoot/python" -Recurse -Force
+          Copy-Item -Path "pyproject.toml" -Destination $packageRoot -Force
+          Copy-Item -Path "README.md" -Destination $packageRoot -Force
+          Copy-Item -Path "README_EN.md" -Destination $packageRoot -Force
+          Copy-Item -Path "LICENSE" -Destination $packageRoot -Force
+
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Compress-Archive `
+            -Path "$packageRoot/*" `
+            -DestinationPath "artifacts/${{ env.ARTIFACT_NAME }}.zip" `
+            -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: artifacts/${{ env.ARTIFACT_NAME }}.zip
+          if-no-files-found: error
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/${{ env.ARTIFACT_NAME }}.zip
+          generate_release_notes: true

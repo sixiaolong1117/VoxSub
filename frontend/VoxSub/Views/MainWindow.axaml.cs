@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 namespace VoxSub.Views;
 
@@ -7,5 +9,25 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    private async void OpenSettings_Click(object? sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new SettingsWindow();
+        await settingsWindow.ShowDialog<bool?>(this);
+    }
+
+    private void LogTextBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (FollowLogCheckBox.IsChecked != true)
+            return;
+
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                LogScrollViewer.Offset = LogScrollViewer.Offset.WithY(LogScrollViewer.Extent.Height);
+                LogTextBox.CaretIndex = LogTextBox.Text?.Length ?? 0;
+            },
+            DispatcherPriority.Background);
     }
 }

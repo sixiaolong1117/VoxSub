@@ -15,7 +15,7 @@ public sealed class ToolLocator
     /// </summary>
     private static readonly string[] PythonCandidates =
         RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            ? ["python", "python3", "py"]
+            ? ["python.exe", "python3.exe", "py.exe", "python", "python3", "py"]
             : ["python3", "python"];
 
     /// <summary>
@@ -24,12 +24,12 @@ public sealed class ToolLocator
     /// </summary>
     public static string? FindPython(string? userSpecifiedPath = null)
     {
-        if (!string.IsNullOrWhiteSpace(userSpecifiedPath) && File.Exists(userSpecifiedPath))
-            return userSpecifiedPath;
+        if (!string.IsNullOrWhiteSpace(userSpecifiedPath))
+            return ResolveConfiguredPath(userSpecifiedPath);
 
         foreach (var candidate in PythonCandidates)
         {
-            var fullPath = FindOnPath(candidate);
+            var fullPath = ResolveConfiguredPath(candidate);
             if (fullPath is not null)
                 return fullPath;
         }
@@ -37,16 +37,60 @@ public sealed class ToolLocator
         return null;
     }
 
+    public static string? FindVirtualEnvironmentPython(string rootDirectory)
+    {
+        foreach (var environmentName in new[] { ".venv", "venv", "env" })
+        {
+            var environmentRoot = Path.Combine(rootDirectory, environmentName);
+            foreach (var relativePath in GetVirtualEnvironmentPythonRelativePaths())
+            {
+                var pythonPath = Path.Combine(environmentRoot, relativePath);
+                if (File.Exists(pythonPath) && IsVirtualEnvironmentPython(pythonPath))
+                    return Path.GetFullPath(pythonPath);
+            }
+        }
+
+        return null;
+    }
+
+    public static string GetPreferredVirtualEnvironmentDirectory(string rootDirectory)
+    {
+        return Path.Combine(rootDirectory, ".venv");
+    }
+
+    public static string GetPreferredVirtualEnvironmentPythonPath(string rootDirectory)
+    {
+        var relativePath = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? Path.Combine(".venv", "Scripts", "python.exe")
+            : Path.Combine(".venv", "bin", "python");
+
+        return Path.Combine(rootDirectory, relativePath);
+    }
+
+    public static bool IsVirtualEnvironmentPython(string pythonPath)
+    {
+        var resolvedPath = ToolPathResolver.Resolve(pythonPath).ResolvedPath;
+        if (resolvedPath is null)
+            return false;
+
+        var executableDirectory = Path.GetDirectoryName(resolvedPath);
+        if (string.IsNullOrWhiteSpace(executableDirectory))
+            return false;
+
+        return IsPythonEnvironmentRoot(executableDirectory)
+            || (Directory.GetParent(executableDirectory) is { } parent
+                && IsPythonEnvironmentRoot(parent.FullName));
+    }
+
     /// <summary>
     /// 查找 voxsub 命令（已安装的 pip/pipx 版本）。
     /// </summary>
     public static string? FindVoxSubCommand(string? userSpecifiedPath = null)
     {
-        if (!string.IsNullOrWhiteSpace(userSpecifiedPath) && File.Exists(userSpecifiedPath))
-            return userSpecifiedPath;
+        if (!string.IsNullOrWhiteSpace(userSpecifiedPath))
+            return ResolveConfiguredPath(userSpecifiedPath);
 
-        var commandName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "voxsub.exe" : "voxsub";
-        return FindOnPath(commandName);
+        return ResolveConfiguredPath(ToolDefaults.VoxSubCommand);
     }
 
     /// <summary>
@@ -63,6 +107,28 @@ public sealed class ToolLocator
                 return dir.FullName;
 
             dir = dir.Parent;
+        }
+
+        return null;
+    }
+
+    public static string? FindProjectRootFromScript(string scriptPath)
+    {
+        var normalizedScriptPath = scriptPath.Trim().Trim('"');
+        var directory = Path.GetDirectoryName(normalizedScriptPath);
+        while (!string.IsNullOrWhiteSpace(directory))
+        {
+            var pyprojectPath = Path.Combine(directory, "pyproject.toml");
+            var scriptInPythonDirectory = Path.Combine(directory, PythonDirectoryName, VoxSubScriptName);
+            var legacyScript = Path.Combine(directory, VoxSubScriptName);
+
+            if (File.Exists(pyprojectPath)
+                && (File.Exists(scriptInPythonDirectory) || File.Exists(legacyScript)))
+            {
+                return Path.GetFullPath(directory);
+            }
+
+            directory = Directory.GetParent(directory)?.FullName;
         }
 
         return null;
@@ -96,39 +162,33 @@ public sealed class ToolLocator
     /// </summary>
     public static string? FindFfmpeg(string? userSpecifiedPath = null)
     {
-        if (!string.IsNullOrWhiteSpace(userSpecifiedPath) && File.Exists(userSpecifiedPath))
-            return userSpecifiedPath;
+        if (!string.IsNullOrWhiteSpace(userSpecifiedPath))
+            return ResolveConfiguredPath(userSpecifiedPath);
 
-        var commandName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ffmpeg.exe" : "ffmpeg";
-        return FindOnPath(commandName);
+        return ResolveConfiguredPath(ToolDefaults.FfmpegCommand);
     }
 
-    /// <summary>
-    /// 在 PATH 环境变量中查找指定可执行文件。
-    /// </summary>
-    private static string? FindOnPath(string executableName)
+    private static string? ResolveConfiguredPath(string path)
     {
-        // 如果是完整路径且存在，直接返回。
-        if (Path.IsPathFullyQualified(executableName) && File.Exists(executableName))
-            return executableName;
+        return ToolPathResolver.Resolve(path).ResolvedPath;
+    }
 
-        // 检查当前工作目录。
-        var cwd = Path.Combine(Environment.CurrentDirectory, executableName);
-        if (File.Exists(cwd))
-            return cwd;
-
-        // 检查 PATH 环境变量。
-        var pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(pathEnv))
-            return null;
-
-        foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+    private static IEnumerable<string> GetVirtualEnvironmentPythonRelativePaths()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var fullPath = Path.Combine(dir.Trim(), executableName);
-            if (File.Exists(fullPath))
-                return fullPath;
+            yield return Path.Combine("Scripts", "python.exe");
+            yield return Path.Combine("Scripts", "python3.exe");
+            yield break;
         }
 
-        return null;
+        yield return Path.Combine("bin", "python3");
+        yield return Path.Combine("bin", "python");
+    }
+
+    private static bool IsPythonEnvironmentRoot(string directory)
+    {
+        return File.Exists(Path.Combine(directory, "pyvenv.cfg"))
+            || Directory.Exists(Path.Combine(directory, "conda-meta"));
     }
 }

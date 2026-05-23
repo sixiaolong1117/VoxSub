@@ -276,7 +276,7 @@ dotnet run --project frontend/VoxSub
 4. 点击开始，在日志区域查看实时输出
 5. 需要中断时点击取消
 
-图形界面本身不内置 Whisper、PyTorch 或 FFmpeg。它会优先调用系统中的 `voxsub` 命令；如果未安装 `voxsub`，则尝试使用本仓库内的 `python/voxsub.py`。
+图形界面本身不内置 Whisper、PyTorch 或 FFmpeg。它会优先调用系统中的 `voxsub` 命令；如果未安装 `voxsub`，则尝试使用本仓库内的 `python/voxsub.py`。脚本模式会自动在项目根目录创建或复用 `.venv` 并安装缺失依赖，不会向系统 Python 安装包。
 
 ## 技术架构
 

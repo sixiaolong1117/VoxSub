@@ -276,7 +276,7 @@ dotnet run --project frontend/VoxSub
 4. Click start and watch the live output in the log panel
 5. Click cancel if you need to stop the task
 
-The desktop UI does not bundle Whisper, PyTorch, or FFmpeg. It calls the system `voxsub` command first; if `voxsub` is not installed, it tries to use this repository's `python/voxsub.py`.
+The desktop UI does not bundle Whisper, PyTorch, or FFmpeg. It calls the system `voxsub` command first; if `voxsub` is not installed, it tries to use this repository's `python/voxsub.py`. Script mode automatically creates or reuses a project-local `.venv` and installs missing dependencies there, without installing packages into the system Python.
 
 ## Technical Architecture
 
