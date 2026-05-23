@@ -1,0 +1,333 @@
+# VoxSub
+
+<div align="center">
+
+<img src="frontend/VoxSub/Assets/voxsub-icon.svg" alt="VoxSub" width="128">
+
+**An OpenAI Whisper-powered subtitle generation and embedding tool<br/>CUDA | Apple Silicon MPS | CPU | Avalonia desktop UI**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](pyproject.toml)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](frontend/VoxSub/VoxSub.csproj)
+[![Avalonia](https://img.shields.io/badge/Avalonia-12.0.3-8B5CFE)](https://avaloniaui.net/)
+
+**English** | [简体中文](README.md)
+
+</div>
+
+---
+
+## Introduction
+
+VoxSub is a lightweight Whisper subtitle tool for generating `.srt` subtitles from media files and embedding subtitles into `.mkv` files. It provides both a command-line interface and an Avalonia desktop UI, making it useful for everyday subtitle creation, existing subtitle embedding, and local workflows that need scriptable batch processing.
+
+VoxSub focuses on a few clear goals:
+
+- Transcribe video or audio into UTF-8 `.srt` subtitles
+- Embed existing `.srt` subtitles as subtitle streams in `.mkv` files
+- Transcribe and embed in one command
+- Automatically select an available compute device with CUDA, MPS, and CPU fallback
+- Convert `zh-Hans` output to Simplified Chinese
+
+## Features
+
+### Subtitle Generation
+
+- **Whisper transcription**: supports Whisper models such as `tiny`, `base`, `small`, `medium`, `large`, and `turbo`
+- **Multilingual recognition**: supports Whisper language codes such as `zh`, `en`, `ja`, `ko`, `fr`, `de`, and `es`
+- **Simplified Chinese output**: `zh-Hans` is passed to Whisper as `zh`, then converted to Simplified Chinese with OpenCC
+- **SRT generation**: creates standard `.srt` files from Whisper segments, defaulting to the same basename as the media file
+- **Verbose logs**: use `--verbose` to show Whisper transcription progress
+
+### Subtitle Embedding
+
+- **MKV embedding**: uses FFmpeg to write `.srt` subtitles into `.mkv` files
+- **No re-encoding**: video and audio streams are copied to avoid unnecessary quality loss and processing time
+- **Subtitle language metadata**: supports language tags such as `zh`, `en`, and `ja`
+- **Matching subtitle convention**: if no subtitle path is provided, VoxSub uses the media file's matching `.srt`
+- **Overwrite control**: output files are not overwritten by default; use `--overwrite` to overwrite explicitly
+
+### Devices and Stability
+
+- **Automatic device selection**: `--device auto` selects an available acceleration backend
+- **NVIDIA CUDA**: uses `cuda` when CUDA-enabled PyTorch is available on Windows or Linux
+- **Apple Silicon MPS**: prefers `mps` on macOS when the MPS backend is available
+- **CPU fallback**: falls back to `cpu` when no acceleration backend is available
+- **Automatic fp16 policy**: `--fp16 auto` enables fp16 only on CUDA and disables it on MPS/CPU for better stability
+
+### Desktop UI
+
+- **Three task modes**: transcribe subtitles, embed subtitles, or transcribe and embed
+- **File pickers**: choose media files, subtitle files, SRT output paths, and MKV output paths
+- **Parameter panel**: configure language, model, device, fp16, verbose output, and overwrite behavior
+- **Live logs**: displays stdout/stderr from `voxsub` or `python/voxsub.py`
+- **Task cancellation**: cancel the current task while it is running, including the process tree
+- **Toolchain fallback**: uses an installed `voxsub` command first, then falls back to the repository's `python/voxsub.py`
+
+## Quick Start
+
+### Requirements
+
+- Python 3.11+
+- FFmpeg, with `ffmpeg` available on the system PATH
+- PyTorch
+- openai-whisper
+- OpenCC
+- pysrt
+
+The desktop UI also requires:
+
+- .NET 10 SDK or Runtime
+- A Windows, macOS, or Linux desktop environment supported by Avalonia
+
+Install FFmpeg:
+
+```bash
+# Windows
+winget install Gyan.FFmpeg
+
+# macOS
+brew install ffmpeg
+
+# Ubuntu / Debian
+sudo apt install ffmpeg
+```
+
+### Install with pipx
+
+If `pipx` is not installed yet:
+
+```bash
+# Windows
+py -m pip install --user pipx
+
+# macOS
+brew install pipx
+
+# Ubuntu / Debian
+python3 -m pip install --user pipx
+```
+
+Using `pipx` is recommended so VoxSub can be installed as a global command:
+
+```bash
+git clone https://github.com/SIXiaolong1117/VoxSub.git
+cd VoxSub
+pipx install --python python3.12 .
+```
+
+You can replace `python3.12` with any available Python 3.11+ interpreter on your machine.
+
+Check the installation:
+
+```bash
+voxsub --help
+```
+
+If the current terminal cannot find `pipx` or `voxsub`, run:
+
+```bash
+# Windows
+py -m pipx ensurepath
+
+# macOS / Linux
+pipx ensurepath
+```
+
+Then reopen the terminal.
+
+For development, use an editable install:
+
+```bash
+pipx uninstall voxsub
+pipx install --editable --python python3.12 .
+```
+
+## Command-Line Usage
+
+### Generate Subtitles
+
+```bash
+voxsub transcribe <media-file> [options]
+```
+
+Examples:
+
+```bash
+voxsub transcribe video.mp4 --language zh-Hans
+voxsub transcribe video.mp4 --language en --model medium -o video.srt
+voxsub transcribe video.mp4 --device cuda --fp16 true --verbose
+```
+
+Common options:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-l, --language` | Whisper language code; `zh-Hans` also converts output to Simplified Chinese | Auto-detect |
+| `-m, --model` | Whisper model name | `large` |
+| `--device` | `auto`, `cuda`, `mps`, or `cpu` | `auto` |
+| `--fp16` | `auto`, `true`, or `false` | `auto` |
+| `-o, --output` | Output `.srt` path | Same-name `.srt` |
+| `--verbose` | Show Whisper transcription progress | Off |
+
+### Embed Subtitles
+
+```bash
+voxsub embed <media-file> [subtitle-file] [options]
+```
+
+If no subtitle file is specified, VoxSub uses a same-name `.srt` next to the media file.
+
+Examples:
+
+```bash
+voxsub embed video.mp4
+voxsub embed video.mp4 subtitle.srt
+voxsub embed video.mp4 -s subtitle.srt --language zh --output-video video.mkv --overwrite
+```
+
+Common options:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[subtitle-file]` | Subtitle path as a positional argument | Same-name `.srt` |
+| `-s, --subtitle` | Explicit subtitle path | Same-name `.srt` |
+| `-l, --language` | Subtitle stream language metadata; `zh-Hans` is written as `zh` | Not written |
+| `--output-video` | Output `.mkv` path | Same-name `.mkv` |
+| `--overwrite` | Overwrite existing output files | Off |
+
+### Transcribe and Embed
+
+```bash
+voxsub all <media-file> [options]
+```
+
+`all` first generates an `.srt` file, then embeds it into an `.mkv` file.
+
+Examples:
+
+```bash
+voxsub all video.mp4 --language zh-Hans --model medium --output-video video.mkv
+voxsub all video.mp4 --device cuda --fp16 auto --overwrite
+```
+
+`all` supports transcription options from `transcribe` and output options from `embed`:
+
+| Option | Description |
+|--------|-------------|
+| `-l, --language` | Recognition language or subtitle language |
+| `-m, --model` | Whisper model |
+| `--device` | Runtime device |
+| `--fp16` | fp16 policy |
+| `-o, --output` | SRT output path |
+| `--verbose` | Verbose Whisper output |
+| `--output-video` | MKV output path |
+| `--overwrite` | Overwrite an existing MKV |
+
+## CUDA and MPS
+
+VoxSub selects the runtime device with `--device`:
+
+```bash
+voxsub transcribe video.mp4 --device auto
+voxsub transcribe video.mp4 --device cuda
+voxsub transcribe video.mp4 --device mps
+voxsub transcribe video.mp4 --device cpu
+```
+
+`--fp16 auto` enables fp16 only on CUDA by default:
+
+```bash
+voxsub transcribe video.mp4 --device cuda --fp16 true
+voxsub transcribe video.mp4 --device mps --fp16 false
+```
+
+If `--device cuda` fails, the most common cause is that the isolated `pipx` environment for `voxsub` has a CPU-only PyTorch build installed. Reinstall a CUDA-enabled PyTorch build inside the `voxsub` environment:
+
+```bash
+pipx runpip voxsub install --upgrade --force-reinstall torch --index-url https://download.pytorch.org/whl/cu121
+```
+
+Choose the CUDA version according to the current installation command from the PyTorch website. On Windows, you can check PyTorch inside the `voxsub` environment with:
+
+```powershell
+pipx runpip voxsub show torch
+voxsub transcribe video.mp4 --device cuda
+```
+
+## Desktop GUI
+
+VoxSub provides an Avalonia desktop UI for using the same CLI capabilities without writing commands by hand.
+
+### Run
+
+.NET 10 SDK is required:
+
+```bash
+dotnet build frontend/VoxSub
+dotnet run --project frontend/VoxSub
+```
+
+### Workflow
+
+1. Choose a task type: transcribe subtitles, embed subtitles, or transcribe and embed
+2. Choose a media file, and optionally choose subtitle or output paths
+3. Set the language, Whisper model, device, and fp16 policy
+4. Click start and watch the live output in the log panel
+5. Click cancel if you need to stop the task
+
+The desktop UI does not bundle Whisper, PyTorch, or FFmpeg. It calls the system `voxsub` command first; if `voxsub` is not installed, it tries to use this repository's `python/voxsub.py`.
+
+## Technical Architecture
+
+| Module | Description |
+|--------|-------------|
+| `python/voxsub.py` | CLI entry point for argument parsing, Whisper invocation, SRT generation, and FFmpeg embedding |
+| `python/requirements.txt` | Python runtime dependencies |
+| `pyproject.toml` | Python package metadata and the `voxsub` command entry point |
+| `frontend/VoxSub` | Avalonia desktop app |
+| `frontend/VoxSub.Tests` | Unit tests for command argument building and related behavior |
+
+Key dependencies:
+
+- **OpenAI Whisper**: local speech recognition and transcription
+- **PyTorch**: CUDA, MPS, and CPU inference backends
+- **OpenCC**: Simplified Chinese conversion for `zh-Hans`
+- **pysrt**: SRT subtitle file generation
+- **FFmpeg**: media processing and subtitle embedding
+- **Avalonia UI 12.0.3**: cross-platform desktop UI
+- **CommunityToolkit.Mvvm 8.4.1**: MVVM support for the desktop app
+
+## Development and Testing
+
+Run the Python CLI:
+
+```bash
+python python/voxsub.py --help
+```
+
+Run desktop tests:
+
+```bash
+dotnet test frontend/VoxSub.Tests
+```
+
+## Contributing
+
+Issues and pull requests are welcome. Before submitting changes, please check at least the following:
+
+- `voxsub --help` or `python python/voxsub.py --help` runs correctly
+- CLI argument changes are also reflected in the Avalonia command builder and tests
+- Desktop behavior changes are covered by `dotnet test frontend/VoxSub.Tests`
+
+## License
+
+This project is open source under the [MIT License](LICENSE).
+
+## Acknowledgements
+
+- [OpenAI Whisper](https://github.com/openai/whisper) - local speech recognition and transcription
+- [FFmpeg](https://ffmpeg.org/) - multimedia processing toolkit
+- [OpenCC](https://github.com/BYVoid/OpenCC) - Chinese conversion
+- [Avalonia UI](https://avaloniaui.net/) - cross-platform .NET UI framework
+- [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) - .NET MVVM toolkit

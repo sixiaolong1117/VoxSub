@@ -1,0 +1,226 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Styles.Resources>
+        <ResourceDictionary>
+            <FontFamily x:Key="DefaultFont">Microsoft YaHei, Inter, sans-serif</FontFamily>
+
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="PanelBackground">#99FFFFFF</Color>
+                    <Color x:Key="InputBackground">#B3FFFFFF</Color>
+                    <Color x:Key="ButtonBackground">#B3FFFFFF</Color>
+                    <Color x:Key="CardBorderColor">#26000000</Color>
+                    <Color x:Key="SubtlePanelBackground">#66FFFFFF</Color>
+                    <Color x:Key="StatusPillBackground">#14000000</Color>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="PanelBackground">#992C2C2C</Color>
+                    <Color x:Key="InputBackground">#B32C2C2C</Color>
+                    <Color x:Key="ButtonBackground">#B32C2C2C</Color>
+                    <Color x:Key="CardBorderColor">#33FFFFFF</Color>
+                    <Color x:Key="SubtlePanelBackground">#552C2C2C</Color>
+                    <Color x:Key="StatusPillBackground">#18FFFFFF</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="{DynamicResource DefaultFont}" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button">
+        <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseMediumLowBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumHighBrush}" />
+    </Style>
+
+    <Style Selector="Button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseMediumBrush}" />
+    </Style>
+
+    <Style Selector="Button:disabled /template/ ContentPresenter">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColorLight2}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorLight1}" />
+    </Style>
+
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
+    </Style>
+
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="{DynamicResource InputBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style Selector="TextBox:pointerover /template/ Border#border">
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumHighBrush}" />
+    </Style>
+
+    <Style Selector="TextBox:focus /template/ Border#border">
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+    </Style>
+
+    <Style Selector="TextBox.mono">
+        <Setter Property="FontFamily" Value="Cascadia Code, Cascadia Mono, Consolas, 'Courier New'" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="TextBox.borderless">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="Background" Value="{DynamicResource InputBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style Selector="ComboBox:pointerover /template/ Border#border">
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumHighBrush}" />
+    </Style>
+
+    <Style Selector="ComboBox:focus /template/ Border#border">
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+    </Style>
+
+    <Style Selector="ComboBox:disabled">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
+    <Style Selector="CheckBox">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="RadioButton">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="ProgressBar">
+        <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}" />
+        <Setter Property="Height" Value="4" />
+        <Setter Property="CornerRadius" Value="2" />
+    </Style>
+
+    <Style Selector="ScrollBar">
+        <Setter Property="Width" Value="8" />
+    </Style>
+
+    <Style Selector="ScrollBar Thumb">
+        <Setter Property="Background" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="MinWidth" Value="4" />
+        <Setter Property="MinHeight" Value="4" />
+    </Style>
+
+    <Style Selector="ScrollBar Thumb:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+    </Style>
+
+    <Style Selector="Border.titleBar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+
+    <Style Selector="Border.settingsCard">
+        <Setter Property="Background" Value="{DynamicResource PanelBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderColor}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <Style Selector="Border.groupCard">
+        <Setter Property="Background" Value="{DynamicResource SubtlePanelBackground}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style Selector="Border.statusPill">
+        <Setter Property="Background" Value="{DynamicResource StatusPillBackground}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="10,4" />
+    </Style>
+
+    <Style Selector="TextBlock.sectionTitle">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+
+    <Style Selector="TextBlock.label">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+
+    <Style Selector="TextBlock.hint">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Opacity" Value="0.65" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="TextBlock.statusText">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Opacity" Value="0.68" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="TextBlock.required">
+        <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Separator">
+        <Setter Property="Background" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Margin" Value="0,4" />
+    </Style>
+
+</Styles>

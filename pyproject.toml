@@ -21,3 +21,4 @@ voxsub = "voxsub:main"
 
 [tool.setuptools]
 py-modules = ["voxsub"]
+package-dir = {"" = "python"}

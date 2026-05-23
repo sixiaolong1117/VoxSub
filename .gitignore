@@ -14,3 +14,8 @@ env/
 *.mp3
 *.wav
 convert
+/task
+
+# .NET / Avalonia
+frontend/**/bin/
+frontend/**/obj/

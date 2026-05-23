@@ -1,0 +1,287 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:VoxSub.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="1040"
+        d:DesignHeight="720"
+        x:Class="VoxSub.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="VoxSub - 字幕工具"
+        Icon="/Assets/voxsub-icon.ico"
+        Width="1040"
+        Height="720"
+        MinWidth="900"
+        MinHeight="620"
+        Background="Transparent"
+        TransparencyLevelHint="Mica,Blur">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="48,Auto,*">
+
+        <Border Grid.Row="0" Classes="titleBar">
+            <Grid ColumnDefinitions="Auto,*,Auto"
+                  Margin="16,0"
+                  VerticalAlignment="Center">
+
+                <StackPanel Orientation="Horizontal"
+                            Spacing="10"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="VoxSub"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="字幕工具"
+                               Classes="statusText"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Border Grid.Column="1"
+                        Classes="statusPill"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="状态"
+                                   Classes="statusText"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding StatusText}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            VerticalAlignment="Center">
+                    <Button Content="开始"
+                            Command="{Binding RunCommand}"
+                            IsEnabled="{Binding CanEdit}"
+                            Classes="accent"
+                            MinWidth="82" />
+                    <Button Content="取消"
+                            Command="{Binding CancelCommand}"
+                            MinWidth="82" />
+                    <Button Content="清空日志"
+                            Command="{Binding ClearLogCommand}"
+                            MinWidth="88" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ProgressBar Grid.Row="1"
+                     IsIndeterminate="{Binding IsRunning}"
+                     IsVisible="{Binding IsRunning}"
+                     Height="3" />
+
+        <Grid Grid.Row="2"
+              ColumnDefinitions="1.12*,*"
+              ColumnSpacing="12"
+              Margin="16,12,16,16">
+
+            <ScrollViewer Grid.Column="0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="12">
+
+                    <Border Classes="settingsCard">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="命令" Classes="sectionTitle" />
+                            <WrapPanel IsEnabled="{Binding CanEdit}">
+                                <RadioButton Content="转写字幕"
+                                             IsChecked="{Binding IsTranscribeSelected}"
+                                             Margin="0,0,16,6" />
+                                <RadioButton Content="封装字幕"
+                                             IsChecked="{Binding IsEmbedSelected}"
+                                             Margin="0,0,16,6" />
+                                <RadioButton Content="转写并封装"
+                                             IsChecked="{Binding IsAllSelected}"
+                                             Margin="0,0,16,6" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="settingsCard">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="文件" Classes="sectionTitle" />
+
+                            <Grid ColumnDefinitions="96,16,*,Auto"
+                                  ColumnSpacing="6"
+                                  IsEnabled="{Binding CanEdit}">
+                                <TextBlock Grid.Column="0"
+                                           Text="媒体文件"
+                                           Classes="label" />
+                                <TextBlock Grid.Column="1"
+                                           Text="*"
+                                           Classes="required"
+                                           VerticalAlignment="Center" />
+                                <TextBox Grid.Column="2"
+                                         Text="{Binding MediaPath}"
+                                         PlaceholderText="选择媒体文件" />
+                                <Button Grid.Column="3"
+                                        Content="浏览..."
+                                        Command="{Binding BrowseMediaCommand}"
+                                        MinWidth="74" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="96,16,*,Auto"
+                                  ColumnSpacing="6"
+                                  IsVisible="{Binding IsEmbedMode}"
+                                  IsEnabled="{Binding CanEdit}">
+                                <TextBlock Grid.Column="0"
+                                           Text="字幕文件"
+                                           Classes="label" />
+                                <TextBlock Grid.Column="1" />
+                                <TextBox Grid.Column="2"
+                                         Text="{Binding SubtitlePath}"
+                                         PlaceholderText="默认同名 .srt" />
+                                <Button Grid.Column="3"
+                                        Content="浏览..."
+                                        Command="{Binding BrowseSubtitleCommand}"
+                                        MinWidth="74" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="96,16,*,Auto"
+                                  ColumnSpacing="6"
+                                  IsVisible="{Binding IsOutputSrtEnabled}"
+                                  IsEnabled="{Binding CanEdit}">
+                                <TextBlock Grid.Column="0"
+                                           Text="SRT 输出"
+                                           Classes="label" />
+                                <TextBlock Grid.Column="1" />
+                                <TextBox Grid.Column="2"
+                                         Text="{Binding OutputSrtPath}"
+                                         PlaceholderText="默认同名 .srt" />
+                                <Button Grid.Column="3"
+                                        Content="浏览..."
+                                        Command="{Binding BrowseOutputSrtCommand}"
+                                        MinWidth="74" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="96,16,*,Auto"
+                                  ColumnSpacing="6"
+                                  IsVisible="{Binding IsOutputVideoEnabled}"
+                                  IsEnabled="{Binding CanEdit}">
+                                <TextBlock Grid.Column="0"
+                                           Text="MKV 输出"
+                                           Classes="label" />
+                                <TextBlock Grid.Column="1" />
+                                <TextBox Grid.Column="2"
+                                         Text="{Binding OutputVideoPath}"
+                                         PlaceholderText="默认同名 .mkv" />
+                                <Button Grid.Column="3"
+                                        Content="浏览..."
+                                        Command="{Binding BrowseOutputVideoCommand}"
+                                        MinWidth="74" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="settingsCard">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="参数" Classes="sectionTitle" />
+
+                            <Grid ColumnDefinitions="72,*" IsEnabled="{Binding CanEdit}">
+                                <TextBlock Grid.Column="0"
+                                           Text="语言"
+                                           Classes="label" />
+                                <ComboBox Grid.Column="1"
+                                          ItemsSource="{Binding ActiveLanguageOptions}"
+                                          Text="{Binding Language}"
+                                          IsEditable="True"
+                                          MinWidth="140"
+                                          HorizontalAlignment="Left" />
+                            </Grid>
+
+                            <Border Classes="groupCard"
+                                    IsVisible="{Binding IsWhisperParamsVisible}">
+                                <StackPanel Spacing="10">
+                                    <WrapPanel>
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="8"
+                                                    Margin="0,0,18,8">
+                                            <TextBlock Text="模型"
+                                                       Width="42"
+                                                       Classes="label" />
+                                            <ComboBox ItemsSource="{Binding ModelOptions}"
+                                                      SelectedItem="{Binding Model}"
+                                                      IsEnabled="{Binding CanEdit}"
+                                                      MinWidth="112" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="8"
+                                                    Margin="0,0,18,8">
+                                            <TextBlock Text="设备"
+                                                       Width="42"
+                                                       Classes="label" />
+                                            <ComboBox ItemsSource="{Binding DeviceOptions}"
+                                                      SelectedItem="{Binding Device}"
+                                                      IsEnabled="{Binding CanEdit}"
+                                                      MinWidth="96" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="8"
+                                                    Margin="0,0,18,8">
+                                            <TextBlock Text="fp16"
+                                                       Width="42"
+                                                       Classes="label" />
+                                            <ComboBox ItemsSource="{Binding Fp16Options}"
+                                                      SelectedItem="{Binding Fp16}"
+                                                      IsEnabled="{Binding CanEdit}"
+                                                      MinWidth="96" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                    <CheckBox Content="显示 Whisper 详细输出 (--verbose)"
+                                              IsChecked="{Binding Verbose}"
+                                              IsEnabled="{Binding CanEdit}" />
+                                </StackPanel>
+                            </Border>
+
+                            <CheckBox Content="覆盖已有输出文件 (--overwrite)"
+                                      IsChecked="{Binding Overwrite}"
+                                      IsEnabled="{Binding CanEdit}"
+                                      IsVisible="{Binding IsEmbedParamsVisible}" />
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Column="1"
+                    Classes="settingsCard"
+                    Padding="0">
+                <Grid RowDefinitions="Auto,*" Margin="16">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock Text="日志输出"
+                                   Classes="sectionTitle"
+                                   Margin="0" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding StatusText}"
+                                   Classes="statusText"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Margin="-16,0"
+                                  Padding="16,0">
+                        <TextBox Text="{Binding LogText}"
+                                 Classes="mono borderless"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 HorizontalAlignment="Stretch"
+                                 VerticalAlignment="Stretch"
+                                 MinHeight="420" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
