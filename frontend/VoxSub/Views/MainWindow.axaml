@@ -10,7 +10,6 @@
         x:Class="VoxSub.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{services:Localization Key=WindowTitle}"
-        Icon="/Assets/voxsub-icon.ico"
         Width="1040"
         Height="720"
         MinWidth="900"

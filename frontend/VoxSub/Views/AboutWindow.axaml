@@ -8,7 +8,6 @@
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         x:Class="VoxSub.Views.AboutWindow"
-        Icon="/Assets/voxsub-icon.ico"
         Title="{services:Localization Key=AboutTitle}"
         Background="Transparent"
         TransparencyLevelHint="Mica,Blur">

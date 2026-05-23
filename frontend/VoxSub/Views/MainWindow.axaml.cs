@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -11,6 +13,32 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SetPlatformIcon();
+    }
+
+    private void SetPlatformIcon()
+    {
+        try
+        {
+            var iconPath = GetPlatformIconPath();
+            if (File.Exists(iconPath))
+            {
+                Icon = new WindowIcon(iconPath);
+            }
+        }
+        catch
+        {
+            // 静默失败，使用默认图标
+        }
+    }
+
+    private static string GetPlatformIconPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var assetName = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+            ? "voxsub-icon.icns"
+            : "voxsub-icon.ico";
+        return Path.Combine(baseDir, "Assets", assetName);
     }
 
     private async void OpenSettings_Click(object? sender, RoutedEventArgs e)

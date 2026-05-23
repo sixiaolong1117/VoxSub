@@ -3,6 +3,8 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
@@ -20,8 +22,34 @@ public partial class AboutWindow : Window
     public AboutWindow()
     {
         InitializeComponent();
+        SetPlatformIcon();
         LoadAvatarAsync();
         LoadVersion();
+    }
+
+    private void SetPlatformIcon()
+    {
+        try
+        {
+            var iconPath = GetPlatformIconPath();
+            if (File.Exists(iconPath))
+            {
+                Icon = new WindowIcon(iconPath);
+            }
+        }
+        catch
+        {
+            // 静默失败，使用默认图标
+        }
+    }
+
+    private static string GetPlatformIconPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var assetName = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+            ? "voxsub-icon.icns"
+            : "voxsub-icon.ico";
+        return Path.Combine(baseDir, "Assets", assetName);
     }
 
     private void LoadVersion()

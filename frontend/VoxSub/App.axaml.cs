@@ -4,7 +4,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia.Markup.Xaml;
 using VoxSub.Services;
@@ -53,8 +55,20 @@ public partial class App : Application
 
         base.OnFrameworkInitializationCompleted();
 
+        // 在 macOS 上设置 Dock 图标（Window.Icon 只管窗口标题栏）
+        SetMacDockIcon();
+
         // Update menu after framework is initialized
         UpdateNativeMenuText();
+    }
+
+    private static void SetMacDockIcon()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            return;
+
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "voxsub-icon.icns");
+        MacDockIcon.SetDockIcon(iconPath);
     }
 
     public static async Task ShowSettingsDialogAsync(Window owner)
