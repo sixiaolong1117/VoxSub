@@ -9,6 +9,8 @@
 
     <NativeMenu.Menu>
         <NativeMenu>
+            <NativeMenuItem Header="关于 VoxSub"
+                            Click="OpenAbout_Click" />
             <NativeMenuItem Header="设置..."
                             Click="OpenSettings_Click" />
         </NativeMenu>

@@ -85,6 +85,9 @@ public sealed class Localization : INotifyPropertyChanged
             // Log
             ["FollowLog"] = "跟随最新日志",
 
+            // About
+            ["AboutTitle"] = "关于",
+
             // Settings
             ["SettingsTitle"] = "VoxSub 设置",
             ["SettingsSubtitle"] = "工具路径与语言",
@@ -198,6 +201,9 @@ public sealed class Localization : INotifyPropertyChanged
 
             // Log
             ["FollowLog"] = "Follow Log",
+
+            // About
+            ["AboutTitle"] = "About",
 
             // Settings
             ["SettingsTitle"] = "VoxSub Settings",

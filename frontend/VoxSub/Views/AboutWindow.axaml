@@ -1,0 +1,82 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:services="using:VoxSub.Services"
+        Width="380"
+        Height="400"
+        MinWidth="320"
+        MinHeight="360"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        x:Class="VoxSub.Views.AboutWindow"
+        Icon="/Assets/voxsub-icon.ico"
+        Title="{services:Localization Key=AboutTitle}"
+        Background="Transparent"
+        TransparencyLevelHint="Mica,Blur">
+
+    <Window.Styles>
+        <Style Selector="Window">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.repoLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="0">
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="16"
+                    Margin="32">
+
+            <!-- 头像 -->
+            <Border Width="100"
+                    Height="100"
+                    CornerRadius="50"
+                    ClipToBounds="True"
+                    BorderBrush="{DynamicResource SystemAccentColor}"
+                    BorderThickness="2"
+                    HorizontalAlignment="Center">
+                <Image x:Name="AvatarImage"
+                       Width="100"
+                       Height="100"
+                       Stretch="UniformToFill" />
+            </Border>
+
+            <!-- 作者名称 -->
+            <TextBlock Text="司晓龙"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center" />
+
+            <!-- 版本号 -->
+            <TextBlock x:Name="VersionText"
+                       Classes="accent"
+                       HorizontalAlignment="Center" />
+
+            <Separator Margin="0,4" />
+
+            <!-- 仓库链接 -->
+            <Button Classes="repoLink"
+                    Click="OpenRepository_Click">
+                <TextBlock TextDecorations="Underline"
+                           Text="Repo"
+                           TextWrapping="Wrap" />
+            </Button>
+
+            <!-- 许可证链接 -->
+            <Button Classes="repoLink"
+                    Click="OpenLicense_Click">
+                <TextBlock TextDecorations="Underline"
+                           Text="License"
+                           TextWrapping="Wrap" />
+            </Button>
+
+        </StackPanel>
+    </Grid>
+</Window>

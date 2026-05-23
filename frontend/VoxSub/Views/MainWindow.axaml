@@ -74,6 +74,9 @@
                     <Button Content="{services:Localization Key=Settings}"
                             Click="OpenSettings_Click"
                             MinWidth="74" />
+                    <Button Content="{services:Localization Key=AboutTitle}"
+                            Click="OpenAbout_Click"
+                            MinWidth="74" />
                 </StackPanel>
             </Grid>
         </Border>

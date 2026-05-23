@@ -16,6 +16,7 @@ namespace VoxSub;
 public partial class App : Application
 {
     private static bool _isSettingsDialogOpen;
+    private NativeMenuItem? _aboutMenuItem;
     private NativeMenuItem? _settingsMenuItem;
 
     public override void Initialize()
@@ -79,22 +80,32 @@ public partial class App : Application
             await ShowSettingsDialogAsync(mainWindow);
     }
 
+    private async void OpenAbout_Click(object? sender, EventArgs e)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+        {
+            var aboutWindow = new AboutWindow();
+            await aboutWindow.ShowDialog(mainWindow);
+        }
+    }
+
     private void UpdateNativeMenuText()
     {
         var loc = Localization.Instance;
-        if (_settingsMenuItem is null)
-        {
-            // Find the NativeMenu item from the XAML-defined NativeMenu.Menu
-            var menu = NativeMenu.GetMenu(this);
-            if (menu is not null && menu.Items.Count > 0)
-            {
-                _settingsMenuItem = menu.Items[0] as NativeMenuItem;
-            }
-        }
+        var menu = NativeMenu.GetMenu(this);
+        if (menu is null)
+            return;
+
+        if (_aboutMenuItem is null && menu.Items.Count > 0)
+            _aboutMenuItem = menu.Items[0] as NativeMenuItem;
+
+        if (_settingsMenuItem is null && menu.Items.Count > 1)
+            _settingsMenuItem = menu.Items[1] as NativeMenuItem;
+
+        if (_aboutMenuItem is not null)
+            _aboutMenuItem.Header = loc["AboutTitle"];
 
         if (_settingsMenuItem is not null)
-        {
             _settingsMenuItem.Header = loc["Settings"] + "...";
-        }
     }
 }

@@ -23,6 +23,17 @@ public partial class MainWindow : Window
         await App.ShowSettingsDialogAsync(this);
     }
 
+    private async void OpenAbout_Click(object? sender, RoutedEventArgs e)
+    {
+        await OpenAboutAsync();
+    }
+
+    private async Task OpenAboutAsync()
+    {
+        var aboutWindow = new AboutWindow();
+        await aboutWindow.ShowDialog(this);
+    }
+
     private void LogTextBox_TextChanged(object? sender, TextChangedEventArgs e)
     {
         if (FollowLogCheckBox.IsChecked != true)

@@ -79,7 +79,13 @@ jobs:
             throw "Tag must look like v0.1.0 or 0.1.0; got: $tag"
           }
 
-          Write-Host "Tag: $tag -> Version: $version"
+          # 补上 .0 后缀用于 .NET 版本号（x.x.x -> x.x.x.0）
+          $dotnetVersion = $version
+          if ($dotnetVersion -match '^\d+\.\d+\.\d+$') {
+            $dotnetVersion = "$dotnetVersion.0"
+          }
+
+          Write-Host "Tag: $tag -> Version: $version -> .NET Version: $dotnetVersion"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -89,6 +95,7 @@ jobs:
           git checkout $defaultBranch
           git pull origin $defaultBranch
 
+          # 更新 pyproject.toml
           $pyproject = Get-Content "$env:PYPROJECT_PATH" -Raw
           $updated = [regex]::Replace($pyproject, '(?m)^version\s*=\s*"[^"]*"', "version = `"$version`"")
           if ($updated -eq $pyproject) {
@@ -96,16 +103,38 @@ jobs:
           } else {
             Set-Content -Path "$env:PYPROJECT_PATH" -Value $updated -Encoding UTF8NoBOM
             git add "$env:PYPROJECT_PATH"
+          }
+
+          # 更新 VoxSub.csproj
+          $csproj = Get-Content "$env:PROJECT_PATH" -Raw
+          $csprojUpdated = [regex]::Replace($csproj, '(?m)^\s*<Version>[^<]*</Version>', "    <Version>$dotnetVersion</Version>")
+          if ($csprojUpdated -eq $csproj) {
+            Write-Host "$env:PROJECT_PATH already uses version $dotnetVersion"
+          } else {
+            Set-Content -Path "$env:PROJECT_PATH" -Value $csprojUpdated -Encoding UTF8NoBOM
+            git add "$env:PROJECT_PATH"
+          }
+
+          # 提交并推送
+          $diff = git diff --cached --name-only
+          if ($diff) {
             git commit -m "Bump version to $version [skip ci]"
             git push origin $defaultBranch
             Write-Host "Committed version $version to $defaultBranch branch"
+          } else {
+            Write-Host "No changes to commit"
           }
 
           git checkout $tag
 
+          # 重新应用版本号到工作目录
           $pyproject = Get-Content "$env:PYPROJECT_PATH" -Raw
           $updated = [regex]::Replace($pyproject, '(?m)^version\s*=\s*"[^"]*"', "version = `"$version`"")
           Set-Content -Path "$env:PYPROJECT_PATH" -Value $updated -Encoding UTF8NoBOM
+
+          $csproj = Get-Content "$env:PROJECT_PATH" -Raw
+          $csprojUpdated = [regex]::Replace($csproj, '(?m)^\s*<Version>[^<]*</Version>', "    <Version>$dotnetVersion</Version>")
+          Set-Content -Path "$env:PROJECT_PATH" -Value $csprojUpdated -Encoding UTF8NoBOM
           Write-Host "Applied version $version for current build"
 
       - name: Apply tag version for current build
