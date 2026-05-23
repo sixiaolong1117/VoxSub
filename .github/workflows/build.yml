@@ -35,10 +35,6 @@ jobs:
             runtime: win-x64
             artifact_name: VoxSub-win-x64
             package_kind: windows
-          - os: macos-13
-            runtime: osx-x64
-            artifact_name: VoxSub-macos-x64
-            package_kind: macos
           - os: macos-latest
             runtime: osx-arm64
             artifact_name: VoxSub-macos-arm64
