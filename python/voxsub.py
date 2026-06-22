@@ -243,7 +243,7 @@ def embed_subtitles(
 def add_transcribe_options(parser: argparse.ArgumentParser) -> None:
     """给 transcribe/all 命令添加 Whisper 识别相关参数。"""
     parser.add_argument("-l", "--language", help="Whisper 语言代码，例如 zh、en、ja；简体中文可用 zh-Hans")
-    parser.add_argument("-m", "--model", default="large", help="Whisper 模型名，默认 large")
+    parser.add_argument("-m", "--model", default="turbo", help="Whisper 模型名，默认 turbo")
     parser.add_argument(
         "--device",
         default="auto",

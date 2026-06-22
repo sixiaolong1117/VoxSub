@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -58,7 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public List<string> LanguageOptions { get; } = ["auto", "zh", "zh-Hans", "en", "ja", "ko", "fr", "de", "es"];
 
     [ObservableProperty]
-    private string _model = "large";
+    private string _model = "turbo";
 
     public List<string> ModelOptions { get; } = ["tiny", "base", "small", "medium", "large", "turbo"];
 
