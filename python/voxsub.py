@@ -17,6 +17,60 @@ BLOCKED_PHRASES = (
     "明镜与点点栏目"
 )
 
+# 翻译子命令的语言名称映射：用户输入 → Argos Translate 内部代码。
+LANG_NORMALIZE: dict[str, str] = {
+    "zh": "zh",
+    "zh-hans": "zh",
+    "zh-cn": "zh",
+    "chinese": "zh",
+    "简体中文": "zh",
+    "中文": "zh",
+    "zh-hant": "zt",
+    "zh-tw": "zt",
+    "繁体中文": "zt",
+    "en": "en",
+    "english": "en",
+    "英语": "en",
+    "英文": "en",
+    "ja": "ja",
+    "jp": "ja",
+    "japanese": "ja",
+    "日语": "ja",
+    "日文": "ja",
+    "ko": "ko",
+    "kr": "ko",
+    "korean": "ko",
+    "韩语": "ko",
+    "韩文": "ko",
+    "fr": "fr",
+    "french": "fr",
+    "法语": "fr",
+    "de": "de",
+    "german": "de",
+    "德语": "de",
+    "es": "es",
+    "spanish": "es",
+    "西班牙语": "es",
+    "ru": "ru",
+    "russian": "ru",
+    "俄语": "ru",
+    "pt": "pt",
+    "portuguese": "pt",
+    "葡萄牙语": "pt",
+    "it": "it",
+    "italian": "it",
+    "意大利语": "it",
+    "ar": "ar",
+    "arabic": "ar",
+    "阿拉伯语": "ar",
+    "th": "th",
+    "thai": "th",
+    "泰语": "th",
+    "vi": "vi",
+    "vietnamese": "vi",
+    "越南语": "vi",
+}
+
 
 def normalize_language(language: str | None) -> tuple[str | None, bool]:
     """把用户输入的语言参数转换成 Whisper 可识别的语言和附加处理标记。"""
@@ -240,6 +294,201 @@ def embed_subtitles(
     return output_video
 
 
+def normalize_translation_lang(user_input: str) -> str:
+    """把用户输入的语言描述规范化为 Argos Translate 使用的 ISO 639-1 代码。"""
+    key = user_input.strip().lower()
+    if key in LANG_NORMALIZE:
+        return LANG_NORMALIZE[key]
+    return key
+
+
+def detect_srt_language(subs: Any) -> str:
+    """根据 SRT 字幕内容自动检测源语言。"""
+    from langdetect import DetectorFactory, detect
+
+    DetectorFactory.seed = 0
+
+    texts = [sub.text.strip() for sub in subs if sub.text.strip()]
+    if not texts:
+        raise RuntimeError("字幕文件中没有可检测的文本内容。")
+
+    combined = " ".join(texts[: min(len(texts), 50)])
+    detected = detect(combined)
+    return normalize_translation_lang(detected)
+
+
+def resolve_translation_device(requested: str) -> str:
+    """解析翻译设备参数，auto 时自动检测 CUDA。"""
+    if requested == "cuda":
+        return "cuda"
+    if requested == "cpu":
+        return "cpu"
+    if requested != "auto":
+        return requested
+
+    try:
+        import ctranslate2
+
+        if ctranslate2.get_cuda_device_count() > 0:
+            return "cuda"
+    except Exception:
+        pass
+
+    return "cpu"
+
+
+def load_translation_model(
+    source_code: str,
+    target_code: str,
+    model_override: str | None,
+    device: str = "cpu",
+) -> Any:
+    """加载 Argos Translate 翻译模型，首次使用会自动下载语言包。"""
+    import os
+
+    resolved_device = resolve_translation_device(device)
+    os.environ["ARGOS_DEVICE_TYPE"] = resolved_device
+
+    import argostranslate.package
+    import argostranslate.translate
+
+    installed_languages = argostranslate.translate.get_installed_languages()
+    source_lang = next(
+        (lang for lang in installed_languages if lang.code == source_code), None
+    )
+    target_lang = next(
+        (lang for lang in installed_languages if lang.code == target_code), None
+    )
+
+    if source_lang is None or target_lang is None:
+        print("正在获取可用翻译模型列表...")
+        argostranslate.package.update_package_index()
+        available_packages = argostranslate.package.get_available_packages()
+
+        package_to_install = None
+        for pkg in available_packages:
+            if pkg.from_code == source_code and pkg.to_code == target_code:
+                package_to_install = pkg
+                break
+
+        if package_to_install is None:
+            raise RuntimeError(
+                f"Argos Translate 不支持 {source_code} → {target_code} 的语言对。"
+            )
+
+        print(
+            f"首次翻译 {source_code} → {target_code}，正在下载翻译模型（约 50-100MB）..."
+        )
+        package_path = package_to_install.download()
+        argostranslate.package.install_from_path(package_path)
+
+        installed_languages = argostranslate.translate.get_installed_languages()
+        source_lang = next(
+            (lang for lang in installed_languages if lang.code == source_code), None
+        )
+        target_lang = next(
+            (lang for lang in installed_languages if lang.code == target_code), None
+        )
+
+    if model_override is not None:
+        import argostranslate.translate as at_translate
+        try:
+            return at_translate.Translation(source_lang, target_lang, model_override)
+        except Exception:
+            pass
+
+    translation = source_lang.get_translation(target_lang)
+    if translation is None:
+        raise RuntimeError(f"无法创建 {source_code} → {target_code} 的翻译器。")
+
+    print(f"翻译引擎就绪：{source_lang.name} → {target_lang.name}")
+    return translation
+
+
+def translate_srt(args: argparse.Namespace) -> Path:
+    """翻译 SRT 字幕文件，保持时间轴不变。"""
+    import pysrt
+
+    srt_path = args.srt.expanduser().resolve()
+    if not srt_path.is_file():
+        raise FileNotFoundError(f"{srt_path} 不是有效的字幕文件。")
+
+    source_code = (
+        normalize_translation_lang(args.source) if args.source else None
+    )
+    target_code = normalize_translation_lang(args.target or "zh")
+
+    print(f"读取字幕：{srt_path}")
+    subs = pysrt.open(str(srt_path), encoding="utf-8")
+
+    if source_code is None:
+        source_code = detect_srt_language(subs)
+        print(f"自动检测到源语言代码：{source_code}")
+
+    if source_code == target_code:
+        print(f"源语言与目标语言相同（{source_code}），跳过翻译。")
+        return srt_path
+
+    translator = load_translation_model(
+        source_code,
+        target_code,
+        getattr(args, "model", None),
+        device=getattr(args, "translate_device", "cpu"),
+    )
+
+    translated_count = 0
+    for sub in subs:
+        text = sub.text.strip()
+        if not text:
+            continue
+        sub.text = translator.translate(text)
+        translated_count += 1
+
+    if args.output:
+        output_srt = args.output.expanduser().resolve()
+    else:
+        output_srt = srt_path.parent / f"{srt_path.stem}_{target_code}{srt_path.suffix}"
+
+    output_srt.parent.mkdir(parents=True, exist_ok=True)
+    subs.save(str(output_srt), encoding="utf-8")
+    print(f"已翻译 {translated_count} 条字幕，保存至：{output_srt}")
+    return output_srt
+
+
+def add_translate_options(parser: argparse.ArgumentParser) -> None:
+    """给 translate 命令添加翻译相关参数。"""
+    parser.add_argument(
+        "-s",
+        "--source",
+        help="源语言（默认自动检测），例如 en / ja / zh",
+    )
+    parser.add_argument(
+        "-t",
+        "--target",
+        default="zh",
+        help="目标语言（默认 zh / 简体中文）",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        help="输出 SRT 路径，默认在输入文件名后添加目标语言后缀",
+    )
+    parser.add_argument(
+        "-d",
+        "--device",
+        dest="translate_device",
+        default="cpu",
+        choices=("cpu", "cuda", "auto"),
+        help="翻译运行设备（默认 cpu）；auto 会自动检测 CUDA",
+    )
+    parser.add_argument(
+        "-m",
+        "--model",
+        help="Argos Translate 自定义模型路径（通常无需指定）",
+    )
+
+
 def add_transcribe_options(parser: argparse.ArgumentParser) -> None:
     """给 transcribe/all 命令添加 Whisper 识别相关参数。"""
     parser.add_argument("-l", "--language", help="Whisper 语言代码，例如 zh、en、ja；简体中文可用 zh-Hans")
@@ -267,7 +516,7 @@ def add_embed_options(parser: argparse.ArgumentParser) -> None:
 
 
 def build_command_parser() -> argparse.ArgumentParser:
-    """构建 CLI：transcribe、embed、all 三个子命令。"""
+    """构建 CLI：transcribe、embed、translate、all 四个子命令。"""
     parser = argparse.ArgumentParser(
         description="VoxSub：多功能 Whisper 字幕工具，生成 SRT、封装 MKV，或一步完成。"
     )
@@ -283,6 +532,10 @@ def build_command_parser() -> argparse.ArgumentParser:
     embed_parser.add_argument("-s", "--subtitle", type=Path, help="字幕文件路径，默认使用同名 .srt")
     embed_parser.add_argument("-l", "--language", help="字幕语言元数据，例如 zh、en、ja；zh-Hans 会写入 zh")
     add_embed_options(embed_parser)
+
+    translate_parser = subparsers.add_parser("translate", help="翻译 SRT 字幕文件")
+    translate_parser.add_argument("srt", type=Path, help="输入 SRT 字幕文件路径")
+    add_translate_options(translate_parser)
 
     all_parser = subparsers.add_parser("all", help="生成 SRT 后封装为 MKV")
     all_parser.add_argument("media", type=Path, help="媒体文件路径")
@@ -311,6 +564,10 @@ def run_command(args: argparse.Namespace) -> None:
             overwrite=args.overwrite,
             language=normalize_language(args.language)[0],
         )
+        return
+
+    if args.command == "translate":
+        translate_srt(args)
         return
 
     if args.command == "all":

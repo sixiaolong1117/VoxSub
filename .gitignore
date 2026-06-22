@@ -19,3 +19,5 @@ convert
 # .NET / Avalonia
 frontend/**/bin/
 frontend/**/obj/
+
+.mimocode/*

@@ -24,7 +24,7 @@ public sealed record VoxSubPythonEnvironmentPlan(
 
 public static class VoxSubPythonEnvironment
 {
-    private static readonly string[] RequiredModules = ["whisper", "opencc", "pysrt", "torch"];
+    private static readonly string[] RequiredModules = ["whisper", "opencc", "pysrt", "torch", "argostranslate", "langdetect"];
     private const string TorchCudaIndexUrlEnvironmentVariable = "VOXSUB_TORCH_CUDA_INDEX_URL";
     private const string DefaultTorchCudaIndexUrl = "https://download.pytorch.org/whl/cu128";
 
