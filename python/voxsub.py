@@ -12,9 +12,15 @@ from typing import Any
 
 
 # Whisper 有时会把没有说话的部分识别为以下字符串，这里统一过滤掉。
+# ponytail: 硬编码常见幻觉，长静音录屏必需；日语多为结束语/订阅请求
 BLOCKED_PHRASES = (
     "请不吝点赞 订阅 转发 打赏支持明镜与点点栏目",
-    "明镜与点点栏目"
+    "明镜与点点栏目",
+    "ご視聴ありがとうございました",
+    "ご覧いただきありがとうございました",
+    "ありがとうございました",
+    "チャンネル登録お願いします",
+    "チャンネル登録よろしくお願いします",
 )
 
 # 翻译子命令的语言名称映射：用户输入 → Argos Translate 内部代码。
@@ -180,14 +186,31 @@ def make_subtitles(
 
         converter = OpenCC("t2s")
     subtitle_index = 1
+    filtered_low_confidence = 0
+    filtered_blocked = 0
 
     for segment in segments:
         text = str(segment.get("text", "")).strip()
         if not text:
             continue
 
+        # ponytail: 长视频静音段幻觉过滤，阈值与 transcribe 保持一致；缺字段时跳过判断以兼容旧数据
+        no_speech_prob = segment.get("no_speech_prob")
+        if isinstance(no_speech_prob, (int, float)) and no_speech_prob > 0.6:
+            filtered_low_confidence += 1
+            continue
+        avg_logprob = segment.get("avg_logprob")
+        if isinstance(avg_logprob, (int, float)) and avg_logprob < -1.0:
+            filtered_low_confidence += 1
+            continue
+        compression_ratio = segment.get("compression_ratio")
+        if isinstance(compression_ratio, (int, float)) and compression_ratio > 2.4:
+            filtered_low_confidence += 1
+            continue
+
         # 过滤已知无关文案，避免重复出现在导出的字幕里。
         if any(phrase in text for phrase in BLOCKED_PHRASES):
+            filtered_blocked += 1
             continue
 
         if converter is not None:
@@ -202,6 +225,9 @@ def make_subtitles(
             )
         )
         subtitle_index += 1
+
+    if filtered_low_confidence or filtered_blocked:
+        print(f"已过滤 {filtered_low_confidence} 条低置信段、{filtered_blocked} 条幻觉短语")
 
     return subs
 
@@ -227,11 +253,16 @@ def transcribe_to_srt(args: argparse.Namespace) -> Path:
     model = whisper.load_model(args.model, device=device)
 
     # result["segments"] 包含每段字幕的 start/end/text，是后续生成 SRT 的核心数据。
+    # ponytail: 抗幻觉参数硬编码，长视频大量静音必需；阈值与 make_subtitles 过滤保持一致
     result = model.transcribe(
         str(media_path),
         language=language,
         fp16=fp16,
         verbose=args.verbose,
+        condition_on_previous_text=False,
+        no_speech_threshold=0.6,
+        compression_ratio_threshold=2.4,
+        logprob_threshold=-1.0,
     )
 
     subs = make_subtitles(result["segments"], convert_to_simplified=convert_to_simplified)
@@ -429,12 +460,32 @@ def translate_srt(args: argparse.Namespace) -> Path:
         print(f"源语言与目标语言相同（{source_code}），跳过翻译。")
         return srt_path
 
-    translator = load_translation_model(
-        source_code,
-        target_code,
-        getattr(args, "model", None),
-        device=getattr(args, "translate_device", "cpu"),
-    )
+    # ponytail: Argos 仅支持 ja->en、en->zh 等单跳，ja->zh 需中转；失败时自动尝试经 en 枢纽
+    try:
+        translator = load_translation_model(
+            source_code,
+            target_code,
+            getattr(args, "model", None),
+            device=getattr(args, "translate_device", "cpu"),
+        )
+    except RuntimeError as exc:
+        if "不支持" in str(exc) and source_code != "en" and target_code != "en":
+            print(f"直译 {source_code} → {target_code} 不可用，尝试经 en 中转...")
+            t1 = load_translation_model(
+                source_code, "en", None, device=getattr(args, "translate_device", "cpu")
+            )
+            t2 = load_translation_model(
+                "en", target_code, None, device=getattr(args, "translate_device", "cpu")
+            )
+
+            class _Chained:
+                def translate(self, text: str) -> str:  # type: ignore[no-redef]
+                    return t2.translate(t1.translate(text))
+
+            translator = _Chained()  # type: ignore[assignment]
+            print(f"翻译引擎就绪（中转）：{source_code} → en → {target_code}")
+        else:
+            raise
 
     translated_count = 0
     for sub in subs:
